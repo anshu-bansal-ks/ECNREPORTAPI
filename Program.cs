@@ -34,12 +34,8 @@ builder.Services.AddSingleton<Common>();
 builder.Services.AddScoped<DropdownService>();
 builder.Services.AddScoped<ReportIndexService>();
 builder.Services.AddScoped<ReportEngine>();
-// builder.Services.AddScoped<CustomerTotalsService>();
-// builder.Services.AddScoped<AfterHoursUsersReportService>();
 builder.Services.AddScoped<ItemDetailsService>();
-// builder.Services.AddScoped<ThirteenMonthCustomerSalesforVendorService>();
 builder.Services.AddScoped<ScheduleService>();
-// builder.Services.AddScoped<OpenPOService>();
 builder.Services.AddScoped<ExcelExportService>();
 builder.Services.AddScoped<JwtService>();
 

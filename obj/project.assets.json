@@ -9978,11 +9978,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\workingfolder\\ECNREPORTAPI\\ECNREPORTAPI.csproj",
+      "projectUniqueName": "C:\\workingfolder\\ECNReportPortalReact\\GItWorkingProject\\ECNREPORTAPI\\ECNREPORTAPI.csproj",
       "projectName": "ECNREPORTAPI",
-      "projectPath": "C:\\workingfolder\\ECNREPORTAPI\\ECNREPORTAPI.csproj",
+      "projectPath": "C:\\workingfolder\\ECNReportPortalReact\\GItWorkingProject\\ECNREPORTAPI\\ECNREPORTAPI.csproj",
       "packagesPath": "C:\\Users\\kaizenspark2\\.nuget\\packages\\",
-      "outputPath": "C:\\workingfolder\\ECNREPORTAPI\\obj\\",
+      "outputPath": "C:\\workingfolder\\ECNReportPortalReact\\GItWorkingProject\\ECNREPORTAPI\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\kaizenspark2\\AppData\\Roaming\\NuGet\\NuGet.Config",

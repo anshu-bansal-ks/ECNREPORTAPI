@@ -12,7 +12,7 @@ namespace ECNREPORTAPI.Services
             _config = config;
         }
 
-        public async Task<List<ReportIndex>> GetUserReportsAsync(int userId, string? keyword = "")
+        public async Task<List<ReportIndex>> GetUserReportsAsync(int userId, string? keyword = null)
         {
             var model = new ReportIndex();
             var result = model.GetReports(userId, keyword, _config);

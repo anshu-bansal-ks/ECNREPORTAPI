@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ECNREPORTAPI.Services;
 using ECNREPORTAPI.Dtos;
+using ECNREPORTAPI.Models;
 
 namespace ECNREPORTAPI.Controllers
 {
@@ -11,10 +12,12 @@ namespace ECNREPORTAPI.Controllers
     public class DropdownController : ControllerBase
     {
         private readonly DropdownService _svc;
+        private readonly IConfiguration _config;
 
-        public DropdownController(DropdownService svc)
+        public DropdownController(DropdownService svc, IConfiguration config)
         {
             _svc = svc;
+            _config = config;
         }
 
         [HttpGet("companies")]
@@ -222,7 +225,7 @@ namespace ECNREPORTAPI.Controllers
             if (string.IsNullOrWhiteSpace(compId))
                 return BadRequest("compId required");
 
-            var locations = await _svc.GetLocationsAsync(compId, "WAREHOUSE");
+            var locations = await _svc.GetLocationListAsync(compId, "WAREHOUSE");
 
             var dropdown = _svc.ToDropdownFromLocations(locations);
 
@@ -282,6 +285,21 @@ namespace ECNREPORTAPI.Controllers
             var dropdown = _svc.ToDropdownFromLocationSupplier(data);
 
             return Ok(dropdown);
+        }
+
+        [HttpGet("periods")]
+        public IActionResult GetPeriods()
+        {
+            var commonSvc = new Common(_config); 
+            var periods = commonSvc.gePeriodList();
+            
+            var dropdownData = periods.Select(p => new {
+                periodName = p.Period,        
+                startDate = p.PeriodStartDate,  
+                endDate = p.PeriodEndDate       
+            }).ToList();
+
+            return Ok(dropdownData);
         }
 
     }

@@ -88,72 +88,90 @@ namespace ECNREPORTAPI.Models
             public string till_date { get; set; }
         }
 
-        /// <summary>
-        /// OLD getPeriod logic – untouched
-        /// </summary>
-        public static PeriodDate getPeriod(string? t_period)
+        public static PeriodDate getPeriod(string t_period)
+{
+    string from_date = "", till_date = "";
+    PeriodDate PD = new PeriodDate();
+
+    if (!string.IsNullOrWhiteSpace(t_period) && !t_period.Equals("Time Period"))
+    {
+        // Purana format: "day-0-Today" ya direct "Today"
+        string period = t_period;
+        if (t_period.Contains("-"))
         {
-            string from_date = "", till_date = "";
-            PeriodDate PD = new();
-
-            if (!string.IsNullOrWhiteSpace(t_period) && !t_period.Equals("Time Period"))
-            {
-                string[] arr = t_period.Split('-');
-                string period = arr.Length >= 3 ? arr[2] : t_period;
-
-                DateTime cur = DateTime.Now;
-                DateTime firstMonth = new(cur.Year, cur.Month, 1);
-                DateTime firstYear = new(cur.Year, 1, 1);
-
-                switch (period.ToUpper())
-                {
-                    case "TODAY":
-                        from_date = cur.ToShortDateString();
-                        till_date = cur.ToShortDateString();
-                        break;
-
-                    case "YESTERDAY":
-                        from_date = cur.AddDays(-1).ToShortDateString();
-                        till_date = cur.AddDays(-1).ToShortDateString();
-                        break;
-
-                    case "THIS WEEK":
-                        int diff = (int)cur.DayOfWeek;
-                        from_date = cur.AddDays(-diff).ToShortDateString();
-                        till_date = cur.ToShortDateString();
-                        break;
-
-                    case "MONTH TO DATE":
-                        from_date = firstMonth.ToShortDateString();
-                        till_date = cur.ToShortDateString();
-                        break;
-
-                    case "LAST MONTH":
-                        from_date = firstMonth.AddMonths(-1).ToShortDateString();
-                        till_date = firstMonth.AddDays(-1).ToShortDateString();
-                        break;
-
-                    case "YEAR TO DATE":
-                        from_date = firstYear.ToShortDateString();
-                        till_date = cur.ToShortDateString();
-                        break;
-
-                    case "LAST YEAR":
-                        from_date = firstYear.AddYears(-1).ToShortDateString();
-                        till_date = firstYear.AddDays(-1).ToShortDateString();
-                        break;
-                }
-
-                PD.from_date = from_date;
-                PD.till_date = till_date;
-            }
-
-            return PD;
+            string[] strArr = t_period.Split('-');
+            if (strArr.Length >= 3) period = strArr[2];
         }
 
-        /// <summary>
-        /// Authenticate user against Active Directory (Windows only)
-        /// </summary>
+        DateTime curdate = DateTime.Now;
+        var firstDayOfMonth = new DateTime(curdate.Year, curdate.Month, 1);
+        var firstDayOfYear = new DateTime(curdate.Year, 1, 1);
+
+        // Normalize string for safe matching
+        string key = period.ToUpper().Replace(" ", "").Replace("(", "").Replace(")", "");
+
+        if (key == "TODAY")
+        {
+            from_date = curdate.ToString("yyyy-MM-dd");
+            till_date = curdate.ToString("yyyy-MM-dd");
+        }
+        else if (key == "YESTERDAY")
+        {
+            from_date = curdate.AddDays(-1).ToString("yyyy-MM-dd");
+            till_date = curdate.AddDays(-1).ToString("yyyy-MM-dd");
+        }
+        else if (key == "WTDWEEKTODATE" || key == "WTD")
+        {
+            int diffMon = (int)curdate.DayOfWeek - (int)DayOfWeek.Monday;
+            if (curdate.DayOfWeek == DayOfWeek.Sunday) diffMon = 6;
+            DateTime wtdStart = curdate.AddDays(-diffMon);
+            from_date = wtdStart.ToString("yyyy-MM-dd");
+            till_date = curdate.ToString("yyyy-MM-dd");
+        }
+        else if (key == "LASTWEEKSUNTOSAT" || key == "LASTWEEK")
+        {
+            // 🔥 Correct Last Week (Sun-Sat) logic
+            int dOW = (int)curdate.DayOfWeek; 
+            int daysToSat = dOW + 1; 
+            DateTime lastSat = curdate.AddDays(-daysToSat);
+            DateTime lastSun = lastSat.AddDays(-6);
+            from_date = lastSun.ToString("yyyy-MM-dd");
+            till_date = lastSat.ToString("yyyy-MM-dd");
+        }
+        else if (key == "MONTHTODATE")
+        {
+            from_date = firstDayOfMonth.ToString("yyyy-MM-dd");
+            till_date = curdate.ToString("yyyy-MM-dd");
+        }
+        else if (key == "LASTMONTH")
+        {
+            from_date = firstDayOfMonth.AddMonths(-1).ToString("yyyy-MM-dd");
+            till_date = firstDayOfMonth.AddDays(-1).ToString("yyyy-MM-dd");
+        }
+        else if (key == "YEARTODATE")
+        {
+            from_date = firstDayOfYear.ToString("yyyy-MM-dd");
+            till_date = curdate.ToString("yyyy-MM-dd");
+        }
+        else if (key == "LASTYEAR")
+        {
+            from_date = firstDayOfYear.AddYears(-1).ToString("yyyy-MM-dd");
+            till_date = firstDayOfYear.AddDays(-1).ToString("yyyy-MM-dd");
+        }
+        else
+        {
+            // Default Fallback
+            from_date = "1900-01-01";
+            till_date = "2099-12-31";
+        }
+
+        PD.from_date = from_date;
+        PD.till_date = till_date;
+    }
+    return PD;
+}
+        
+       
         public bool AuthenticateUserAD(string username, string password, out string errMsg)
         {
             errMsg = string.Empty;
@@ -190,11 +208,7 @@ namespace ECNREPORTAPI.Models
                 errMsg = "Authentication failed: " + ex.Message;
                 return false;
             }
-        }
-
-        /// <summary>
-        /// Get user from unified portal database
-        /// </summary>
+        }     
         public users_unifiedportal? GetUserFromDB(string username)
         {
             if (string.IsNullOrWhiteSpace(username))
@@ -226,10 +240,6 @@ namespace ECNREPORTAPI.Models
                 IsAdmin:  reader.GetBoolean(reader.GetOrdinal("IsAdmin"))
             );
         }
-
-        /// <summary>
-        /// Log successful login
-        /// </summary>
         public void LogLogin(int userId, string ip)
         {
             if (userId <= 0 || string.IsNullOrWhiteSpace(ip))

@@ -1,40 +1,118 @@
-
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
 using System.Drawing;
+using System.Globalization;
 
 namespace ECNREPORTAPI.Services.Excel
 {
     public class ExcelExportService
     {
+        private string GetExcelColumnLetter(int columnNumber)
+        {
+            int dividend = columnNumber;
+            string columnName = string.Empty;
+            int modulo;
+            while (dividend > 0)
+            {
+                modulo = (dividend - 1) % 26;
+                columnName = Convert.ToChar(65 + modulo).ToString() + columnName;
+                dividend = (int)((dividend - modulo) / 26);
+            }
+            return columnName;
+        }
+
         public byte[] ExportDynamicListToExcel(
-            IEnumerable<dynamic> data, 
-            string reportName, 
-            string[]? totalColumns = null, 
-            string? labelColumn = null)
+            IEnumerable<dynamic> data,
+            string reportName = "Report",
+            string[]? totalColumns = null,
+            string? labelColumn = null,
+            string[]? columnsToExclude = null)
         {
             ExcelPackage.License.SetNonCommercialPersonal("ECN Report");
 
             using var package = new ExcelPackage();
             var ws = package.Workbook.Worksheets.Add("Report");
 
-            // Check if data is empty
             if (data == null || !data.Any())
             {
-                ws.Cells[1, 1].Value = "No data found for this report.";
+                ws.Cells[1, 1].Value = "No data found.";
                 return package.GetAsByteArray();
             }
 
-            // 1. Load Data
-            var dataAsDictionary = data.Select(x => (IDictionary<string, object>)x).ToList();
-            ws.Cells["A1"].LoadFromDictionaries(dataAsDictionary, true);
+            var rawList = data.Select(x => (IDictionary<string, object?>)x).ToList();
+            var ToTitleCase = (string text) => CultureInfo.CurrentCulture.TextInfo.ToTitleCase(text.Replace("_", " ").ToLower());
+            var CleanHeader = (string? text) => text?.Replace("_", "").Replace(" ", "").ToLower() ?? "";
             
-            int colCount = ws.Dimension.Columns;
-            int rowCount = ws.Dimension.Rows;
-            int dataStartRow = 2;
-            int dataEndRow = rowCount;
+            var cleanList = new List<IDictionary<string, object?>>();
 
-            // 2. Header Styling
+            // 1. Data Cleaning & Parsing
+            foreach (var row in rawList)
+            {
+                var newRow = new Dictionary<string, object?>();
+                foreach (var kvp in row)
+                {
+                    if (columnsToExclude != null && columnsToExclude.Contains(kvp.Key))
+                    continue;
+                    var val = kvp.Value;
+                    var prettyKey = ToTitleCase(kvp.Key);
+                    var cleanKey = CleanHeader(kvp.Key);
+
+                    if (val is string str)
+                    {
+                        if (cleanKey.Contains("date") && DateTime.TryParse(str, out DateTime dt))
+                            newRow[prettyKey] = dt;
+                        // 🔥 Qty ko currency se alag rakha hai
+                        else if ((cleanKey.Contains("total") || cleanKey.Contains("price") || cleanKey.Contains("amount") || cleanKey.Contains("sales") || cleanKey.Contains("cost") || cleanKey.Contains("profit") || cleanKey.Contains("oldvalue")|| cleanKey.Contains("newvalue"))
+                                 && decimal.TryParse(str, out decimal num))
+                            newRow[prettyKey] = num;
+                        else if (cleanKey.Contains("qty") && decimal.TryParse(str, out decimal qNum))
+                            newRow[prettyKey] = (double)qNum; 
+                        else
+                            newRow[prettyKey] = str;
+                    }
+                    else
+                    {
+                        newRow[prettyKey] = val;
+                    }
+                }
+                cleanList.Add(newRow);
+            }
+
+            // 2. Load Data
+            ws.Cells["A1"].LoadFromDictionaries(cleanList, true);
+
+            int colCount = ws.Dimension.Columns;
+            int rowCount = ws.Dimension.Rows; // Data rows + Header
+            int dataStartRow = 2;
+
+            // 3. Column Formatting
+            for (int col = 1; col <= colCount; col++)
+            {
+                var firstDataCell = ws.Cells[2, col].Value;
+                string cleanHeader = CleanHeader(ws.Cells[1, col].Text);
+
+                if (firstDataCell is DateTime || cleanHeader.Contains("date"))
+                {
+                    ws.Column(col).Style.Numberformat.Format = "mm/dd/yyyy";
+                }
+                else if (cleanHeader.Contains("percent"))
+                {
+                    ws.Column(col).Style.Numberformat.Format = "0.0\"%\"";
+                }
+                else if (cleanHeader.Contains("qty"))
+                {
+                    ws.Column(col).Style.Numberformat.Format = "#,##0";
+                }
+                else if (firstDataCell is decimal || firstDataCell is double || firstDataCell is float)
+                {
+                    if (cleanHeader.EndsWith("id") || cleanHeader.Contains("code") || cleanHeader.EndsWith("no"))
+                        ws.Column(col).Style.Numberformat.Format = "0";
+                    else
+                        ws.Column(col).Style.Numberformat.Format = "$#,##0.00";
+                }
+            }
+
+            // 4. Header Styling
             using (var headerRange = ws.Cells[1, 1, 1, colCount])
             {
                 headerRange.Style.Font.Bold = true;
@@ -44,46 +122,77 @@ namespace ECNREPORTAPI.Services.Excel
                 headerRange.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
             }
 
-            // 3. ✅ FOOTER TOTAL LOGIC (Based on UI Request)
+            // 5. Footer Total Logic
             if (totalColumns != null && totalColumns.Length > 0)
             {
                 int footerRow = rowCount + 1;
-                string Clean(string text) => text?.Replace("_", "").Replace(" ", "").ToLower() ?? "";
-                // Set "TOTAL" Label
+                string salesCellAddr = "";
+                string costCellAddr = "";
+
+                // Sales aur Cost columns ke address find karein footer calculation ke liye
+                for (int col = 1; col <= colCount; col++)
+                {
+                    string h = CleanHeader(ws.Cells[1, col].Text);
+                    if (h.Contains("sales") || h.Contains("merch")) salesCellAddr = GetExcelColumnLetter(col) + footerRow;
+                    if (h.Contains("cost")) costCellAddr = GetExcelColumnLetter(col) + footerRow;
+                }
+
                 if (!string.IsNullOrEmpty(labelColumn))
                 {
-                    string targetLabel = Clean(labelColumn);
+                    string targetLabel = CleanHeader(labelColumn);
                     for (int col = 1; col <= colCount; col++)
                     {
-                        if (Clean(ws.Cells[1, col].Text) == targetLabel)
+                        if (CleanHeader(ws.Cells[1, col].Text) == targetLabel)
                         {
                             ws.Cells[footerRow, col].Value = "TOTAL";
                             ws.Cells[footerRow, col].Style.Font.Bold = true;
-                            ws.Cells[footerRow, col].Style.HorizontalAlignment = ExcelHorizontalAlignment.Left;
-                            break;
                         }
                     }
                 }
 
-                // Apply SUM Formulas
-                for (int col = 1; col <= colCount; col++)
+                foreach (var tc in totalColumns)
                 {
-                    string currentHeader = Clean(ws.Cells[1, col].Text);
-                    if (totalColumns.Any(tc => Clean(tc) == currentHeader))
+                    string cleanTC = CleanHeader(tc);
+                    for (int col = 1; col <= colCount; col++)
                     {
-                        var rangeAddress = ws.Cells[dataStartRow, col, dataEndRow, col].Address;
-                        ws.Cells[footerRow, col].Formula = $"SUM({rangeAddress})";
-                        
-                        ws.Cells[footerRow, col].Style.Font.Bold = true;
-                        ws.Cells[footerRow, col].Style.Numberformat.Format = "#,##0.00";
-                        ws.Cells[footerRow, col].Style.Border.Top.Style = ExcelBorderStyle.Double;
-                        ws.Cells[footerRow, col].Style.HorizontalAlignment = ExcelHorizontalAlignment.Right;
+                        if (CleanHeader(ws.Cells[1, col].Text) == cleanTC)
+                        {
+                            var currentCell = ws.Cells[footerRow, col];
+                            currentCell.Style.Font.Bold = true;
+                            currentCell.Style.Border.Top.Style = ExcelBorderStyle.Double;
+
+                            if (cleanTC.Contains("percent"))
+                            {
+                                if (!string.IsNullOrEmpty(salesCellAddr) && !string.IsNullOrEmpty(costCellAddr))
+                                {
+                                    // SQL Logic: ((Sales - Cost) / Sales) * 100
+                                    currentCell.Formula = $"=IF({salesCellAddr}=0, 0, ROUND(({salesCellAddr}-{costCellAddr})/{salesCellAddr}*100, 1))";
+                                    currentCell.Style.Numberformat.Format = "0.0\"%\"";
+                                }
+                            }
+                            else if (cleanTC.Contains("grossprofit"))
+                            {
+                                if (!string.IsNullOrEmpty(salesCellAddr) && !string.IsNullOrEmpty(costCellAddr))
+                                {
+                                    currentCell.Formula = $"={salesCellAddr}-{costCellAddr}";
+                                    currentCell.Style.Numberformat.Format = "$#,##0.00";
+                                }
+                            }
+                            else
+                            {
+                                currentCell.Formula = $"SUM({ws.Cells[dataStartRow, col, rowCount, col].Address})";
+                                if (cleanTC.Contains("qty"))
+                                    currentCell.Style.Numberformat.Format = "#,##0";
+                                else
+                                    currentCell.Style.Numberformat.Format = "$#,##0.00";
+                            }
+                        }
                     }
                 }
-                rowCount++; // Adjust for border range
+                rowCount++;
             }
 
-            // 4. Grid Borders & Formatting
+            // 6. Final Styling
             using (var dataRange = ws.Cells[1, 1, rowCount, colCount])
             {
                 dataRange.Style.Border.Top.Style = ExcelBorderStyle.Thin;
