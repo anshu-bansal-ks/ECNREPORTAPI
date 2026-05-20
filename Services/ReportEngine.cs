@@ -21,88 +21,102 @@ namespace ECNREPORTAPI.Services
 
         public async Task<object?> GetReportDataAsync(string reportName, string compId, Dictionary<string, string> filters)
         {
-            
-            var common = new Models.Common(_config);
-            string conStr = string.IsNullOrWhiteSpace(compId) 
-                            ? common.ConStr 
-                            : common.GetDataBaseConnectionStringHardCoded(compId);
-
-            using var con = new SqlConnection(conStr);
-            string rName = reportName.ToLower();           
-            NormalizeFilters(filters);
-           
-           if (rName == "customerinfo")
+            try
             {
-                string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Reports", "Queries", "customerinfo.sql");
-                if (!File.Exists(filePath)) return null;
+                var common = new Models.Common(_config);
+                string conStr = string.IsNullOrWhiteSpace(compId) 
+                                ? common.ConStr 
+                                : common.GetDataBaseConnectionStringHardCoded(compId);
 
-                string sql = (await File.ReadAllTextAsync(filePath)).Replace("{dashboard}", _dashboard);
-                
-                
-                var p = new DynamicParameters();
-                p.Add("@compId", compId);
-                p.Add("@custId", filters.GetValueOrDefault("custId", ""));
-                using var multi = await con.QueryMultipleAsync(sql, p);
-                return new { 
-                    basic = (await multi.ReadAsync<dynamic>()).ToList(),
-                    groupCode = (await multi.ReadAsync<dynamic>()).ToList(),
-                    totalDue = (await multi.ReadAsync<dynamic>()).ToList(),
-                    salesSummary = (await multi.ReadAsync<dynamic>()).ToList(),
-                    salesDetails = (await multi.ReadAsync<dynamic>()).ToList()
-                };
-            }
+                using var con = new SqlConnection(conStr);
+                string rName = reportName.ToLower();           
+                NormalizeFilters(filters);
             
+            if (rName == "customerinfo")
+                {
+                    string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Reports", "Queries", "customerinfo.sql");
+                    if (!File.Exists(filePath)) return null;
 
-            if (rName == "thirteenmonthcustomersalesforvendor")
+                    string sql = (await File.ReadAllTextAsync(filePath)).Replace("{dashboard}", _dashboard);
+                    
+                    
+                    var p = new DynamicParameters();
+                    p.Add("@compId", compId);
+                    p.Add("@custId", filters.GetValueOrDefault("custId", ""));
+                    using var multi = await con.QueryMultipleAsync(sql, p);
+                    return new { 
+                        basic = (await multi.ReadAsync<dynamic>()).ToList(),
+                        groupCode = (await multi.ReadAsync<dynamic>()).ToList(),
+                        totalDue = (await multi.ReadAsync<dynamic>()).ToList(),
+                        salesSummary = (await multi.ReadAsync<dynamic>()).ToList(),
+                        salesDetails = (await multi.ReadAsync<dynamic>()).ToList()
+                    };
+                }
+                
+
+                if (rName == "thirteenmonthcustomersalesforvendor")
+                {
+                    string repId = filters.GetValueOrDefault("repId", "ALL");
+                    int supplierId = int.Parse(filters.GetValueOrDefault("supplierId", "0"));
+
+                    var model = new ThirteenMonthCustomerSalesforVendor(_config);
+                    var result = await model.GetDataAsync(compId, repId, supplierId);
+
+                    var excelData = ProcessHardReportExcel(result.Data, result.Months);
+                    return new { Data = result.Data, ExcelData = excelData, Months = result.Months };
+                }
+                
+
+                return await HandleSimpleReport(con, rName, filters, compId,common);
+                }
+            catch (Exception ex)
             {
-                string repId = filters.GetValueOrDefault("repId", "ALL");
-                int supplierId = int.Parse(filters.GetValueOrDefault("supplierId", "0"));
-
-                var model = new ThirteenMonthCustomerSalesforVendor(_config);
-                var result = await model.GetDataAsync(compId, repId, supplierId);
-
-                var excelData = ProcessHardReportExcel(result.Data, result.Months);
-                return new { Data = result.Data, ExcelData = excelData, Months = result.Months };
+                System.Diagnostics.Debug.WriteLine($"❌ Error in GetReportDataAsync: {ex.Message}");
+                throw; 
             }
-            
-
-            return await HandleSimpleReport(con, rName, filters, compId,common);
         }
         private async Task<object?> HandleSimpleReport(SqlConnection con, string rName, Dictionary<string, string> filters, string compId, Models.Common common)
         {
-            string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Reports", "Queries", $"{rName}.sql");
-            if (!File.Exists(filePath)) return null;
-
-            string sql = await File.ReadAllTextAsync(filePath);
-            sql = sql.Replace("{dashboard}", _dashboard);
-            string dateRange = GetDateRangeSnippet(filters);
-            if (sql.Contains("{dateRange}"))
-                sql = sql.Replace("{dateRange}", GetDateRangeSnippet(filters));
-
-            var p = PrepareParameters(filters, compId);
-            string finalQueryForDebug = sql; 
-    System.Diagnostics.Debug.WriteLine($"\n🚀 REPORT: {rName} | DATES: {dateRange}");
-             if (rName == "itemwithpriceandcost")
+            try
             {
-               string locationList = await _dropdownService.GetLocationByListAsync(compId, "WAREHOUSE");
-                p.Add("LocationList", locationList);
-            }
-            var rawData = (await con.QueryAsync<dynamic>(sql, p, commandTimeout: 300)).ToList();
-            var excelData = rawData;
-            if (filters.TryGetValue("isExport", out string? isExp) && isExp == "true")
-            {
+                string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Reports", "Queries", $"{rName}.sql");
+                if (!File.Exists(filePath)) return null;
 
-                if (rName == "binchangelocation" && filters.GetValueOrDefault("stockable") == "false")
+                string sql = await File.ReadAllTextAsync(filePath);
+                sql = sql.Replace("{dashboard}", _dashboard);
+                string dateRange = GetDateRangeSnippet(filters);
+                if (sql.Contains("{dateRange}"))
+                    sql = sql.Replace("{dateRange}", GetDateRangeSnippet(filters));
+
+                var p = PrepareParameters(filters, compId);
+            
+                if (rName == "itemwithpriceandcost")
                 {
-                    excelData = rawData.Select(d => {
-                        var dict = (IDictionary<string, object>)d;
-                        if (dict.ContainsKey("stockable")) dict.Remove("stockable");
-                        return dict;
-                    }).Cast<dynamic>().ToList();
+                string locationList = await _dropdownService.GetLocationByListAsync(compId, "WAREHOUSE");
+                    p.Add("LocationList", locationList);
                 }
-            }
+                var rawData = (await con.QueryAsync<dynamic>(sql, p, commandTimeout: 300)).ToList();
+                var excelData = rawData;
+                if (filters.TryGetValue("isExport", out string? isExp) && isExp == "true")
+                {
 
-            return new { Data = rawData, ExcelData = excelData };
+                    if (rName == "binchangelocation" && filters.GetValueOrDefault("stockable") == "false")
+                    {
+                        excelData = rawData.Select(d => {
+                            var dict = (IDictionary<string, object>)d;
+                            if (dict.ContainsKey("stockable")) dict.Remove("stockable");
+                            return dict;
+                        }).Cast<dynamic>().ToList();
+                    }
+                }
+
+                return new { Data = rawData, ExcelData = excelData };
+                }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error in HandleSimpleReport ({rName}): {ex.Message}");
+                return null;
+            }
         }
         private object ProcessUniversalData(IEnumerable<dynamic> rawData)
         {
@@ -157,24 +171,7 @@ namespace ECNREPORTAPI.Services
         // --- HELPERS ---
         private void NormalizeFilters(Dictionary<string, string> f)
         {
-            if (f.ContainsKey("company")) f["compId"] = f["company"];
-            if (f.ContainsKey("salesrep")) f["repId"] = f["salesrep"];
-            if (f.ContainsKey("vendor")) f["vendorId"] = f["vendor"];
-            if (f.ContainsKey("supplier") || f.ContainsKey("supplierop") || f.ContainsKey("locationsupplier"))
-            { f["supplierId"] = f.GetValueOrDefault("supplier") ?? 
-                                f.GetValueOrDefault("supplierop") ?? 
-                                f.GetValueOrDefault("locationsupplier") ?? "ALL";
-            }
-            if (f.ContainsKey("customer")) f["custId"] = f["customer"];
-            if (f.ContainsKey("location")) f["locationId"] = f["location"];
-            if (f.ContainsKey("itemId")) f["itemId"] = f["itemId"].Trim();
-            if (f.ContainsKey("ordernum")) f["ordernum"] = f["ordernum"].Trim();
-            if (f.ContainsKey("custClass")) f["custclass"] = f["custClass"];
-            if (f.ContainsKey("bank_no")) f["bank_no"] = f["bank_no"];
-            if (f.ContainsKey("emailaddress")) f["emailaddress"] = f["emailaddress"];
-            if (f.ContainsKey("minavail")) f["minavail"] = f["minavail"];
-            if (f.ContainsKey("startperiod")) f["startperiod"] = f["startperiod"];
-            if (f.ContainsKey("endperiod")) f["endperiod"] = f["endperiod"];
+            
             if (f.ContainsKey("binzero")) {
                 f["binzero"] = f["binzero"].ToLower() == "true" ? "true" : "false";
             } else {
@@ -211,37 +208,53 @@ namespace ECNREPORTAPI.Services
         {
             var p = new DynamicParameters();
             
-           bool isExport = f.ContainsKey("isExport") && 
-                    (f["isExport"].ToString().ToLower() == "true" || f["isExport"].ToString() == "1");
-            p.Add("binzero", f.GetValueOrDefault("binzero", "false").ToLower() == "true" ? "true" : "false");
-            
-            string startVal = f.GetValueOrDefault("startperiod") ?? "";
-    string endVal = f.GetValueOrDefault("endperiod") ?? "";
-
-    p.Add("startperiod", startVal); 
-    p.Add("endperiod", endVal);
-    p.Add("locationId", f.GetValueOrDefault("locationId") ?? f.GetValueOrDefault("location") ?? "");
-            
+            bool isExport = f.ContainsKey("isExport") && f["isExport"].ToLower() == "true";
+            if (f.ContainsKey("daysold"))
+            {
+                if (int.TryParse(f["daysold"], out int daysOldVal))
+                {
+                    p.Add("daysold", daysOldVal, DbType.Int32); 
+                }
+                else
+                {
+                    p.Add("daysold", 180, DbType.Int32); 
+                }
+            }
+            if (f.ContainsKey("minqty"))
+            {
+                if (int.TryParse(f["minqty"], out int minQtyVal))
+                {
+                    p.Add("minqty", minQtyVal, DbType.Int32); 
+                }
+                else
+                {
+                    p.Add("minqty", 0, DbType.Int32); 
+                }
+            }
             foreach (var item in f)
             {
-                string key = item.Key.ToLower();
-            if (key.Contains("date") || key.Contains("period") || 
-                key == "pagenumber" || key == "pagesize" || key == "isexport") continue;
+                string key = item.Key;
+                string keyLower = key.ToLower();
+                if (keyLower == "fromdate" || keyLower == "tilldate" || keyLower == "timeperiod" || 
+                    keyLower == "pagenumber" || keyLower == "pagesize" || keyLower == "isexport" || 
+                    keyLower == "daysold" ||  keyLower == "minqty") 
+                    continue;
 
-                p.Add(item.Key, item.Value);
+                p.Add(key, item.Value);
             }
-
+            
             if (isExport) {
                 p.Add("Offset", 0);
                 p.Add("PageSize", 1000000); 
-            } else {
+            } 
+            else if (f.ContainsKey("pageNumber")) 
+            {
                 int pageNumber = int.TryParse(f.GetValueOrDefault("pageNumber"), out int pn) ? pn : 1;
                 int pageSize = int.TryParse(f.GetValueOrDefault("pageSize"), out int ps) ? ps : 100;
                 p.Add("Offset", (pageNumber - 1) * pageSize);
                 p.Add("PageSize", pageSize);
             }
-            // 3. CompId safety
-            if (!string.IsNullOrEmpty(compId) && !p.ParameterNames.Contains("compId")) 
+            if (!p.ParameterNames.Any(x => x.Equals("compId", StringComparison.OrdinalIgnoreCase))) 
                 p.Add("compId", compId);
 
             return p;
