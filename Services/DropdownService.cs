@@ -82,7 +82,7 @@ namespace ECNREPORTAPI.Services
             return string.Join(",", locationIds.Where(s => !string.IsNullOrWhiteSpace(s)));
         }
 
-        public async Task<List<LocationDropdownDto>> GetLocationListAsync(string dsource, string locType)
+        public async Task<List<LocationDropdownDto>> GetLocationListAsync(string dsource, string? locType)
         {
             var result = new List<LocationDropdownDto>();
             string connStr = _common.ConStr_Dashboard;
@@ -92,13 +92,15 @@ namespace ECNREPORTAPI.Services
 
             const string sql = @"
                 DECLARE @code VARCHAR(15);
-                SELECT @code = code FROM datasources WHERE dsource = @dsource;
+                SELECT @code = code 
+                FROM datasources 
+                WHERE LOWER(dsource) = LOWER(@dsource) OR LOWER(code) = LOWER(@dsource);
 
                 SELECT Company, State, location_id 
                 FROM tbl_loc WITH (NOLOCK)
                 WHERE Company = @code 
                   AND loc_type = @locType
-                ORDER BY State;";
+                ORDER BY State";
 
             await using var cmd = new SqlCommand(sql, con);
             cmd.Parameters.Add("@dsource", SqlDbType.VarChar, 50).Value = dsource ?? "";
@@ -126,13 +128,15 @@ namespace ECNREPORTAPI.Services
 
             const string sql = @"
                 DECLARE @code VARCHAR(15);
-                SELECT @code = code FROM datasources WHERE dsource = @dsource;
+                SELECT @code = code 
+                FROM datasources 
+                WHERE LOWER(dsource) = LOWER(@dsource) OR LOWER(code) = LOWER(@dsource);
 
                 SELECT TOP 1 location_id 
                 FROM tbl_loc WITH (NOLOCK)
                 WHERE Company = @code 
                   AND loc_type = @locType 
-                  AND State = @state;";
+                  AND State = @state";
 
             await using var cmd = new SqlCommand(sql, con);
             cmd.Parameters.Add("@dsource", SqlDbType.VarChar, 50).Value = dsource ?? "";

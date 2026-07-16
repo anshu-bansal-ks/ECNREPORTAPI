@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ECNREPORTAPI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d3ba4bb51e8380f37ddcc363fa4a17fa5056b47a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2fa314de843bb064c321d7b0202d81bb844811e2")]
 [assembly: System.Reflection.AssemblyProductAttribute("ECNREPORTAPI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ECNREPORTAPI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

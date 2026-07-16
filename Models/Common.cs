@@ -89,87 +89,130 @@ namespace ECNREPORTAPI.Models
         }
 
         public static PeriodDate getPeriod(string t_period)
-{
-    string from_date = "", till_date = "";
-    PeriodDate PD = new PeriodDate();
+        {
+            string from_date = "", till_date = "";
+            PeriodDate PD = new PeriodDate();
 
-    if (!string.IsNullOrWhiteSpace(t_period) && !t_period.Equals("Time Period"))
-    {
-        // Purana format: "day-0-Today" ya direct "Today"
-        string period = t_period;
-        if (t_period.Contains("-"))
-        {
-            string[] strArr = t_period.Split('-');
-            if (strArr.Length >= 3) period = strArr[2];
-        }
+            if (!string.IsNullOrWhiteSpace(t_period) && !t_period.Equals("Time Period"))
+            {
+                // Purana format: "day-0-Today" ya direct "Today"
+                string period = t_period;
+                if (t_period.Contains("-"))
+                {
+                    string[] strArr = t_period.Split('-');
+                    if (strArr.Length >= 3) period = strArr[2];
+                }
 
-        DateTime curdate = DateTime.Now;
-        var firstDayOfMonth = new DateTime(curdate.Year, curdate.Month, 1);
-        var firstDayOfYear = new DateTime(curdate.Year, 1, 1);
+                DateTime curdate = DateTime.Now;
+                var firstDayOfMonth = new DateTime(curdate.Year, curdate.Month, 1);
+                var firstDayOfYear = new DateTime(curdate.Year, 1, 1);
 
-        // Normalize string for safe matching
-        string key = period.ToUpper().Replace(" ", "").Replace("(", "").Replace(")", "");
+                // Normalize string for safe matching
+                string key = period.ToUpper().Replace(" ", "").Replace("(", "").Replace(")", "");
 
-        if (key == "TODAY")
-        {
-            from_date = curdate.ToString("yyyy-MM-dd");
-            till_date = curdate.ToString("yyyy-MM-dd");
-        }
-        else if (key == "YESTERDAY")
-        {
-            from_date = curdate.AddDays(-1).ToString("yyyy-MM-dd");
-            till_date = curdate.AddDays(-1).ToString("yyyy-MM-dd");
-        }
-        else if (key == "WTDWEEKTODATE" || key == "WTD")
-        {
-            int diffMon = (int)curdate.DayOfWeek - (int)DayOfWeek.Monday;
-            if (curdate.DayOfWeek == DayOfWeek.Sunday) diffMon = 6;
-            DateTime wtdStart = curdate.AddDays(-diffMon);
-            from_date = wtdStart.ToString("yyyy-MM-dd");
-            till_date = curdate.ToString("yyyy-MM-dd");
-        }
-        else if (key == "LASTWEEKSUNTOSAT" || key == "LASTWEEK")
-        {
-            // 🔥 Correct Last Week (Sun-Sat) logic
-            int dOW = (int)curdate.DayOfWeek; 
-            int daysToSat = dOW + 1; 
-            DateTime lastSat = curdate.AddDays(-daysToSat);
-            DateTime lastSun = lastSat.AddDays(-6);
-            from_date = lastSun.ToString("yyyy-MM-dd");
-            till_date = lastSat.ToString("yyyy-MM-dd");
-        }
-        else if (key == "MONTHTODATE")
-        {
-            from_date = firstDayOfMonth.ToString("yyyy-MM-dd");
-            till_date = curdate.ToString("yyyy-MM-dd");
-        }
-        else if (key == "LASTMONTH")
-        {
-            from_date = firstDayOfMonth.AddMonths(-1).ToString("yyyy-MM-dd");
-            till_date = firstDayOfMonth.AddDays(-1).ToString("yyyy-MM-dd");
-        }
-        else if (key == "YEARTODATE")
-        {
-            from_date = firstDayOfYear.ToString("yyyy-MM-dd");
-            till_date = curdate.ToString("yyyy-MM-dd");
-        }
-        else if (key == "LASTYEAR")
-        {
-            from_date = firstDayOfYear.AddYears(-1).ToString("yyyy-MM-dd");
-            till_date = firstDayOfYear.AddDays(-1).ToString("yyyy-MM-dd");
-        }
-        else
-        {
-            // Default Fallback
-            from_date = "1900-01-01";
-            till_date = "2099-12-31";
-        }
+                if (key == "TODAY")
+                {
+                    from_date = curdate.ToString("yyyy-MM-dd");
+                    till_date = curdate.ToString("yyyy-MM-dd");
+                }
+                else if (key == "YESTERDAY")
+                {
+                    from_date = curdate.AddDays(-1).ToString("yyyy-MM-dd");
+                    till_date = curdate.AddDays(-1).ToString("yyyy-MM-dd");
+                }
+                else if (key == "THISWEEK")
+                {
+                    // Aapka purana Sunday-based logic
+                    DayOfWeek currentDay = curdate.DayOfWeek;
+                    int daysTillCurrentDay = currentDay - DayOfWeek.Sunday;
+                    DateTime currentWeekStartDate = curdate.AddDays(-daysTillCurrentDay);
+                    from_date = currentWeekStartDate.ToString("yyyy-MM-dd");
+                    till_date = curdate.ToString("yyyy-MM-dd");
+                }
+                else if (key == "WTDWEEKTODATE" || key == "WTD")
+                {
+                    int diffMon = (int)curdate.DayOfWeek - (int)DayOfWeek.Monday;
+                    if (curdate.DayOfWeek == DayOfWeek.Sunday) diffMon = 6;
+                    DateTime wtdStart = curdate.AddDays(-diffMon);
+                    from_date = wtdStart.ToString("yyyy-MM-dd");
+                    till_date = curdate.ToString("yyyy-MM-dd");
+                }
+                else if (key == "LASTWEEKSUNTOSAT" || key == "LASTWEEK")
+                {
+                    // 🔥 Correct Last Week (Sun-Sat) logic
+                    int dOW = (int)curdate.DayOfWeek; 
+                    int daysToSat = dOW + 1; 
+                    DateTime lastSat = curdate.AddDays(-daysToSat);
+                    DateTime lastSun = lastSat.AddDays(-6);
+                    from_date = lastSun.ToString("yyyy-MM-dd");
+                    till_date = lastSat.ToString("yyyy-MM-dd");
+                }
+                else if (key == "MONTHTODATE")
+                {
+                    from_date = firstDayOfMonth.ToString("yyyy-MM-dd");
+                    till_date = curdate.ToString("yyyy-MM-dd");
+                }
+                else if (key == "LASTMONTH")
+                {
+                    from_date = firstDayOfMonth.AddMonths(-1).ToString("yyyy-MM-dd");
+                    till_date = firstDayOfMonth.AddDays(-1).ToString("yyyy-MM-dd");
+                }
+                else if (key == "LASTTHREEMONTH")
+                {
+                    DateTime startOfLast3Months = curdate.AddMonths(-3);
+                    startOfLast3Months = new DateTime(startOfLast3Months.Year, startOfLast3Months.Month, 1);
+                    DateTime endOfLastMonth = new DateTime(curdate.Year, curdate.Month, 1).AddDays(-1);
+                    from_date = startOfLast3Months.ToString("yyyy-MM-dd");
+                    till_date = endOfLastMonth.ToString("yyyy-MM-dd");
+                }
+                else if (key == "QTRTODATE")
+                {
+                    DateTime startOfQuarter = (curdate.Month <= 3) ? new DateTime(curdate.Year, 1, 1) :
+                                            (curdate.Month <= 6) ? new DateTime(curdate.Year, 4, 1) :
+                                            (curdate.Month <= 9) ? new DateTime(curdate.Year, 7, 1) : 
+                                                                    new DateTime(curdate.Year, 10, 1);
+                    from_date = startOfQuarter.ToString("yyyy-MM-dd");
+                    till_date = curdate.ToString("yyyy-MM-dd");
+                }
+                else if (key == "LASTQTR")
+                {
+                    DateTime startPrevQtr, endPrevQtr;
+                    if (curdate.Month <= 3) { startPrevQtr = new DateTime(curdate.Year - 1, 10, 1); endPrevQtr = new DateTime(curdate.Year - 1, 12, 31); }
+                    else if (curdate.Month <= 6) { startPrevQtr = new DateTime(curdate.Year, 1, 1); endPrevQtr = new DateTime(curdate.Year, 3, 31); }
+                    else if (curdate.Month <= 9) { startPrevQtr = new DateTime(curdate.Year, 4, 1); endPrevQtr = new DateTime(curdate.Year, 6, 30); }
+                    else { startPrevQtr = new DateTime(curdate.Year, 7, 1); endPrevQtr = new DateTime(curdate.Year, 9, 30); }
+                    from_date = startPrevQtr.ToString("yyyy-MM-dd");
+                    till_date = endPrevQtr.ToString("yyyy-MM-dd");
+                }
+                else if (key == "LASTTWELVEMONTH")
+                {
+                    DateTime startOfLast12Months = curdate.AddYears(-1).AddDays(-curdate.Day + 1);
+                    DateTime endOfLastMonth = new DateTime(curdate.Year, curdate.Month, 1).AddDays(-1);
+                    from_date = startOfLast12Months.ToString("yyyy-MM-dd");
+                    till_date = endOfLastMonth.ToString("yyyy-MM-dd");
+                }
+                else if (key == "YEARTODATE")
+                {
+                    from_date = firstDayOfYear.ToString("yyyy-MM-dd");
+                    till_date = curdate.ToString("yyyy-MM-dd");
+                }
+                else if (key == "LASTYEAR")
+                {
+                    from_date = firstDayOfYear.AddYears(-1).ToString("yyyy-MM-dd");
+                    till_date = firstDayOfYear.AddDays(-1).ToString("yyyy-MM-dd");
+                }
+                else
+                {
+                    // Default Fallback
+                    from_date = "1900-01-01";
+                    till_date = "2099-12-31";
+                }
 
-        PD.from_date = from_date;
-        PD.till_date = till_date;
-    }
-    return PD;
-}
+                PD.from_date = from_date;
+                PD.till_date = till_date;
+            }
+            return PD;
+        }
         
        
         public bool AuthenticateUserAD(string username, string password, out string errMsg)

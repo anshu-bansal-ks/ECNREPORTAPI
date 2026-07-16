@@ -6,6 +6,7 @@ using Microsoft.OpenApi.Models;
 using ECNREPORTAPI.Services;
 using ECNREPORTAPI.Models;
 using ECNREPORTAPI.Services.Excel;
+using ECNREPORTAPI.Services.Pdf;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -37,6 +38,7 @@ builder.Services.AddScoped<ReportEngine>();
 builder.Services.AddScoped<ItemDetailsService>();
 builder.Services.AddScoped<ScheduleService>();
 builder.Services.AddScoped<ExcelExportService>();
+builder.Services.AddScoped<PdfExportService>();
 builder.Services.AddScoped<JwtService>();
 
 // =========================

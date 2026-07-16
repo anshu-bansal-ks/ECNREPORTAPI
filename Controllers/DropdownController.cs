@@ -220,12 +220,12 @@ namespace ECNREPORTAPI.Controllers
     
         [HttpGet("locations")]
         [AllowAnonymous]  
-        public async Task<IActionResult> Locations([FromQuery] string compId)
+        public async Task<IActionResult> Locations([FromQuery] string compId,[FromQuery] string? locType = "WAREHOUSE")
         {
             if (string.IsNullOrWhiteSpace(compId))
                 return BadRequest("compId required");
 
-            var locations = await _svc.GetLocationListAsync(compId, "WAREHOUSE");
+            var locations = await _svc.GetLocationListAsync(compId, locType ?? "WAREHOUSE");
 
             var dropdown = _svc.ToDropdownFromLocations(locations);
 

@@ -34,7 +34,7 @@ ELSE 'B2B'
 END CUSTTYPE ,
 left(datename(m, invoice_date),3) as [Mnth],
 isnull((total_amount - freight),0) total_amount
-FROM invoice_hdr(nolock)
+FROM invoice_hdr (nolock)
 WHERE year(invoice_date) > 2005 AND YEAR(invoice_date) <= YEAR(GETDATE())
 ) SalesSummary
 PIVOT

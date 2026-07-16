@@ -11,11 +11,11 @@ SELECT c.customer_id
 , a.[61_90] as [61_to_90]
 , a.Over90 
 , a.Total_Due
-FROM p21_view_customer c
-JOIN dbo.v_aging a ON a.customer_id=c.customer_id
-JOIN DA_Rep r ON r.customer_id=c.customer_id
-JOIN dbo.p21_view_terms t ON t.terms_id=c.terms_id
-LEFT OUTER JOIN dbo.da_ytd_static ytd ON ytd.customer_id=c.customer_id
+FROM p21_view_customer (NOLOCK) c
+JOIN dbo.v_aging (NOLOCK) a ON a.customer_id=c.customer_id
+JOIN DA_Rep (NOLOCK) r ON r.customer_id=c.customer_id
+JOIN dbo.p21_view_terms (NOLOCK) t ON t.terms_id=c.terms_id
+LEFT OUTER JOIN dbo.da_ytd_static (NOLOCK) ytd ON ytd.customer_id=c.customer_id
 WHERE a.Total_Due<>0
 And ( @repId = 'ALL' OR r.salesrep_id = @repId) 
 ORDER BY rep

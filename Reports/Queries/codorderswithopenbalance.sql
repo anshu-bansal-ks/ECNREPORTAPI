@@ -7,10 +7,10 @@ SELECT invoice_hdr.customer_id
 , oe_pick_ticket.tracking_no
 , oe_pick_ticket.freight_out
 , p21_invoice_amt_remaining_view.amt_remaining_frominv as [amount]
-FROM invoice_hdr
-JOIN p21_invoice_amt_remaining_view on p21_invoice_amt_remaining_view.invoice_no = invoice_hdr.invoice_no
-JOIN oe_pick_ticket on oe_pick_ticket.invoice_no = invoice_hdr.invoice_no
-JOIN address on oe_pick_ticket.carrier_id = address.id
+FROM invoice_hdr (NOLOCK)
+JOIN p21_invoice_amt_remaining_view (NOLOCK) on p21_invoice_amt_remaining_view.invoice_no = invoice_hdr.invoice_no
+JOIN oe_pick_ticket (NOLOCK) on oe_pick_ticket.invoice_no = invoice_hdr.invoice_no
+JOIN address (NOLOCK) on oe_pick_ticket.carrier_id = address.id
 WHERE invoice_hdr.paid_in_full_flag = 'N'
 AND invoice_hdr.terms_desc like '%COD%'
 AND address.name like '%UPS%'

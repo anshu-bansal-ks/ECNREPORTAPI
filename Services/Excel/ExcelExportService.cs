@@ -93,7 +93,7 @@ namespace ECNREPORTAPI.Services.Excel
 
                 if (firstDataCell is DateTime || cleanHeader.Contains("date"))
                 {
-                    ws.Column(col).Style.Numberformat.Format = "mm/dd/yyyy";
+                    ws.Column(col).Style.Numberformat.Format = "mm/dd/yyyy hh:mm AM/PM";
                 }
                 else if (cleanHeader.Contains("percent"))
                 {
@@ -102,6 +102,10 @@ namespace ECNREPORTAPI.Services.Excel
                 else if (cleanHeader.Contains("qty"))
                 {
                     ws.Column(col).Style.Numberformat.Format = "#,##0";
+                }
+                else if (cleanHeader.Contains("weight") ||cleanHeader.Contains("discount"))
+                {
+                    ws.Column(col).Style.Numberformat.Format = "#,##0.00";
                 }
                 else if (firstDataCell is decimal || firstDataCell is double || firstDataCell is float)
                 {
@@ -182,9 +186,17 @@ namespace ECNREPORTAPI.Services.Excel
                             {
                                 currentCell.Formula = $"SUM({ws.Cells[dataStartRow, col, rowCount, col].Address})";
                                 if (cleanTC.Contains("qty"))
+                                {
                                     currentCell.Style.Numberformat.Format = "#,##0";
+                                }
+                                else if (cleanTC.Contains("weight"))
+                                {
+                                    currentCell.Style.Numberformat.Format = "#,##0.00";
+                                }
                                 else
+                                {
                                     currentCell.Style.Numberformat.Format = "$#,##0.00";
+                                }
                             }
                         }
                     }

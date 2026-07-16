@@ -4,11 +4,11 @@ SELECT im.item_id
 , iu.unit_of_measure
 , uom.unit_description
 , CAST(iu.unit_size AS INT) as unit_size
-FROM item_uom iu
-JOIN p21_view_inv_mast im ON im.inv_mast_uid = iu.inv_mast_uid
-JOIN dbo.p21_view_unit_of_measure uom ON uom.unit_id = iu.unit_of_measure
-JOIN dbo.p21_view_inventory_supplier invsup ON invsup.inv_mast_uid = im.inv_mast_uid
-JOIN dbo.p21_view_inventory_supplier_x_loc supploc ON supploc.inventory_supplier_uid = invsup.inventory_supplier_uid
+FROM item_uom (NOLOCK) iu
+JOIN p21_view_inv_mast (NOLOCK) im ON im.inv_mast_uid = iu.inv_mast_uid
+JOIN dbo.p21_view_unit_of_measure (NOLOCK) uom ON uom.unit_id = iu.unit_of_measure
+JOIN dbo.p21_view_inventory_supplier (NOLOCK) invsup ON invsup.inv_mast_uid = im.inv_mast_uid
+JOIN dbo.p21_view_inventory_supplier_x_loc (NOLOCK) supploc ON supploc.inventory_supplier_uid = invsup.inventory_supplier_uid
 AND supploc.location_id = @locationId
 AND supploc.primary_supplier = 'Y'
 LEFT OUTER JOIN dbo.v_upc ON v_upc.inv_mast_uid = im.inv_mast_uid
