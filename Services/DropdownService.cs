@@ -10,14 +10,14 @@ namespace ECNREPORTAPI.Services
     {
         private readonly DashboardContext _ctx;
         private readonly Common _common;
+        private readonly string dashboard;
 
-        public DropdownService(DashboardContext ctx, Common common)
+        public DropdownService(DashboardContext ctx, Common common, IConfiguration config)
         {
             _ctx = ctx;
             _common = common;
+             dashboard = config["DASHBOARD"] ?? "";
         }
-
-        // 1. Companies - WORKING
         public async Task<List<DropdownItemDto>> GetCompaniesAsync()
         {
             return await _ctx.DataSources
@@ -420,8 +420,8 @@ namespace ECNREPORTAPI.Services
 
             string sqlsub = compId switch
             {
-                "xg" => "('xg','xgen')",
-                "adv" => "('adv','ad')",
+                "XG" => "('xg','xgen')",
+                "ADV" => "('adv','ad')",
                 _ => $"('{compId}')"
             };
 
@@ -537,5 +537,429 @@ namespace ECNREPORTAPI.Services
                 .OrderBy(x => x.Label)
                 .ToList();
         }
+    
+        public async Task<List<SalsifyMcatDto>> GetSalsifyMcatAsync()
+        {
+            var result = new List<SalsifyMcatDto>();
+
+            await using var con = new SqlConnection(_common.ConStr_Dashboard);
+            await con.OpenAsync();
+
+            string sql = $@"
+                SELECT DISTINCT mcat
+                FROM {dashboard}.dbo.salsify_itemData
+                WHERE mcat IS NOT NULL
+                ORDER BY mcat";
+
+            await using var cmd = new SqlCommand(sql, con);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                result.Add(new SalsifyMcatDto
+                {
+                    mcat = reader["mcat"]?.ToString() ?? ""
+                });
+            }
+
+            return result;
+        }
+
+        public List<DropdownItemDto> ToDropdownFromSalsifyMcat(IEnumerable<SalsifyMcatDto> list)
+        {
+            return list
+                .Where(x => !string.IsNullOrWhiteSpace(x.mcat))
+                .Select(x => new DropdownItemDto
+                {
+                    Value = x.mcat,
+                    Label = x.mcat
+                })
+                .OrderBy(x => x.Label)
+                .ToList();
+        }
+        public async Task<List<SalsifyScatDto>> GetSalsifyScatAsync(string? mcat)
+        {
+            var result = new List<SalsifyScatDto>();
+
+            await using var con = new SqlConnection(_common.ConStr_Dashboard);
+            await con.OpenAsync();
+
+            string sql = $@"
+                SELECT DISTINCT scat
+                FROM {dashboard}.dbo.salsify_itemData
+                WHERE scat IS NOT NULL";
+
+            await using var cmd = new SqlCommand();
+            cmd.Connection = con;
+            if (!string.IsNullOrWhiteSpace(mcat))
+            {
+                sql += " AND mcat = @mcat";
+                 cmd.Parameters.AddWithValue("@mcat", mcat.Trim());
+            }
+
+            sql += " ORDER BY scat";
+
+             cmd.CommandText = sql;
+
+            
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                result.Add(new SalsifyScatDto
+                {
+                    scat = reader["scat"]?.ToString() ?? ""
+                });
+            }
+
+            return result;
+        }
+
+        public List<DropdownItemDto> ToDropdownFromSalsifyScat(IEnumerable<SalsifyScatDto> list)
+        {
+            return list
+                .Where(x => !string.IsNullOrWhiteSpace(x.scat))
+                .Select(x => new DropdownItemDto
+                {
+                    Value = x.scat,
+                    Label = x.scat
+                })
+                .OrderBy(x => x.Label)
+                .ToList();
+        }
+
+        public async Task<List<LnkItemCategoriesDto>> GetLnkItemCategoriesAsync(string compId)
+        {
+            var result = new List<LnkItemCategoriesDto>();
+
+            string connStr = GetConnStringByCompId(compId);
+
+            if (string.IsNullOrWhiteSpace(connStr))
+                return result;
+
+            await using var con = new SqlConnection(connStr);
+            await con.OpenAsync();
+
+            string sql = $@"
+                SELECT DISTINCT
+                    p_itemCategoryID,
+                    str_itemCategory
+                FROM {dashboard}.dbo.lnkItemCategories
+                ORDER BY str_itemCategory";
+
+            await using var cmd = new SqlCommand(sql, con);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                result.Add(new LnkItemCategoriesDto
+                {
+                    p_itemCategoryID = reader["p_itemCategoryID"]?.ToString() ?? "",
+                    str_itemCategory = reader["str_itemCategory"]?.ToString() ?? ""
+                });
+            }
+
+            return result;
+        }
+        public List<DropdownItemDto> ToDropdownFromItemCategories(IEnumerable<LnkItemCategoriesDto> list)
+        {
+            return list
+                .Select(x => new DropdownItemDto
+                {
+                    Value = x.p_itemCategoryID,
+                    Label = x.str_itemCategory
+                })
+                .OrderBy(x => x.Label)
+                .ToList();
+        }
+
+        public async Task<List<PricePageListDto>> GetPricePageListAsync(string compId, string supplierId)
+        {
+            var result = new List<PricePageListDto>();
+
+            string connStr = GetConnStringByCompId(compId);
+
+            if (string.IsNullOrWhiteSpace(connStr))
+                return result;
+
+            await using var con = new SqlConnection(connStr);
+            await con.OpenAsync();
+
+            const string sql = @"
+                SELECT
+                    supplier_id,
+                    price_page_uid,
+                    description AS page_desc
+                FROM dbo.price_page
+                WHERE supplier_id = @supplier_id
+                ORDER BY page_desc";
+
+            await using var cmd = new SqlCommand(sql, con);
+
+            cmd.Parameters.Add("@supplier_id", SqlDbType.VarChar).Value = supplierId;
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                result.Add(new PricePageListDto
+                {
+                    supplier_id = reader["supplier_id"]?.ToString() ?? "",
+                    price_page_uid = reader["price_page_uid"]?.ToString() ?? "",
+                    page_desc = reader["page_desc"]?.ToString() ?? ""
+                });
+            }
+
+            return result;
+        }
+
+        public List<DropdownItemDto> ToDropdownFromPricePages(IEnumerable<PricePageListDto> list)
+        {
+            return list
+                .Select(x => new DropdownItemDto
+                {
+                    Value = x.price_page_uid,
+                    Label = x.page_desc
+                })
+                .OrderBy(x => x.Label)
+                .ToList();
+        }
+
+        public async Task<List<TermsListDto>> GetTermsListAsync(string compId)
+        {
+            var result = new List<TermsListDto>();
+
+            string connStr = GetConnStringByCompId(compId);
+
+            if (string.IsNullOrWhiteSpace(connStr))
+                return result;
+
+            await using var con = new SqlConnection(connStr);
+            await con.OpenAsync();
+
+            const string sql = @"
+                SELECT
+                    terms_id,
+                    terms_desc
+                FROM p21_view_terms WITH (NOLOCK)
+                WHERE delete_flag = 'N'
+                ORDER BY terms_desc";
+
+            await using var cmd = new SqlCommand(sql, con);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                result.Add(new TermsListDto
+                {
+                    terms_id = reader["terms_id"]?.ToString() ?? "",
+                    terms_desc = reader["terms_desc"]?.ToString() ?? ""
+                });
+            }
+
+            return result;
+        }
+        public List<DropdownItemDto> ToDropdownFromTerms(IEnumerable<TermsListDto> list)
+        {
+            return list
+                .Select(x => new DropdownItemDto
+                {
+                    Value = x.terms_id,
+                    Label = x.terms_desc
+                })
+                .OrderBy(x => x.Label)
+                .ToList();
+        }
+        public async Task<List<ClassNumberDto>> GetClassNumbersAsync(string compId)
+        {
+            var result = new List<ClassNumberDto>();
+
+            string connStr = GetConnStringByCompId(compId);
+
+            if (string.IsNullOrWhiteSpace(connStr))
+                return result;
+
+            await using var con = new SqlConnection(connStr);
+            await con.OpenAsync();
+
+            const string sql = @"
+                SELECT DISTINCT Class_number
+                FROM class WITH (NOLOCK)
+                WHERE delete_flag = 'N'
+                AND class_type = 'IV'
+                ORDER BY Class_number";
+
+            await using var cmd = new SqlCommand(sql, con);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                result.Add(new ClassNumberDto
+                {
+                    Class_number = reader["Class_number"]?.ToString() ?? ""
+                });
+            }
+
+            return result;
+        }
+        public List<DropdownItemDto> ToDropdownFromClassNumbers(IEnumerable<ClassNumberDto> list)
+        {
+            return list
+                .Select(x => new DropdownItemDto
+                {
+                    Value = x.Class_number,
+                    Label = x.Class_number
+                })
+                .OrderBy(x => x.Label)
+                .ToList();
+        }
+        public async Task<List<ClassIdDto>> GetClassIdAsync(string compId, string classNumber)
+        {
+            var result = new List<ClassIdDto>();
+
+            string connStr = GetConnStringByCompId(compId);
+
+            if (string.IsNullOrWhiteSpace(connStr))
+                return result;
+
+            await using var con = new SqlConnection(connStr);
+            await con.OpenAsync();
+
+            const string sql = @"
+                SELECT
+                    class_id,
+                    class_description
+                FROM class WITH (NOLOCK)
+                WHERE class_type = 'IV'
+                AND delete_flag = 'N'
+                AND class_number = @classNumber
+                ORDER BY class_description";
+
+            await using var cmd = new SqlCommand(sql, con);
+
+            cmd.Parameters.Add("@classNumber", SqlDbType.VarChar, 50).Value = classNumber ?? "";
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                result.Add(new ClassIdDto
+                {
+                    class_id = reader["class_id"]?.ToString() ?? "",
+                    class_description = reader["class_description"]?.ToString() ?? ""
+                });
+            }
+
+            return result;
+        }
+        public List<DropdownItemDto> ToDropdownFromClassId(IEnumerable<ClassIdDto> list)
+        {
+            return list
+                .Select(x => new DropdownItemDto
+                {
+                    Value = x.class_id,
+                    Label = x.class_description
+                })
+                .OrderBy(x => x.Label)
+                .ToList();
+        }
+        
+        public async Task<List<PurchaseClassDto>> GetPurchaseClassAsync(string compId)
+        {
+            var result = new List<PurchaseClassDto>();
+
+            string connStr = GetConnStringByCompId(compId);
+
+            if (string.IsNullOrWhiteSpace(connStr))
+                return result;
+
+            await using var con = new SqlConnection(connStr);
+            await con.OpenAsync();
+
+            const string sql = @"
+                SELECT DISTINCT
+                purchase_class
+                FROM p21_view_inv_loc il
+                WHERE il.delete_flag = 'N'
+                AND il.purchase_class IS NOT NULL
+                ORDER BY purchase_class";
+
+            await using var cmd = new SqlCommand(sql, con);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                result.Add(new PurchaseClassDto
+                {
+                    purchase_class = reader["purchase_class"]?.ToString() ?? ""
+                });
+            }
+
+            return result;
+        }
+        public List<DropdownItemDto> ToDropdownFromPurchaseClass(IEnumerable<PurchaseClassDto> list)
+        {
+            return list
+                .Select(x => new DropdownItemDto
+                {
+                    Value = x.purchase_class,
+                    Label = x.purchase_class
+                })
+                .OrderBy(x => x.Label)
+                .ToList();
+        }
+
+          public async Task<List<ProductGroupDto>> GetProductGroupAsync(string compId)
+        {
+            var result = new List<ProductGroupDto>();
+
+            string connStr = GetConnStringByCompId(compId);
+
+            if (string.IsNullOrWhiteSpace(connStr))
+                return result;
+
+            await using var con = new SqlConnection(connStr);
+            await con.OpenAsync();
+
+            const string sql = @"
+               SELECT DISTINCT product_group_id
+                , product_group_desc
+                FROM tbl_productrank (nolock)
+                order by product_group_desc";
+
+            await using var cmd = new SqlCommand(sql, con);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                result.Add(new ProductGroupDto
+                {
+                    product_group_id = reader["product_group_id"]?.ToString() ?? "",
+                    product_group_desc = reader["product_group_desc"]?.ToString() ?? ""
+                });
+            }
+
+            return result;
+        }
+        public List<DropdownItemDto> ToDropdownFromProductGroup(IEnumerable<ProductGroupDto> list)
+        {
+            return list
+                .Select(x => new DropdownItemDto
+                {
+                    Value = x.product_group_id,
+                    Label = x.product_group_desc
+                })
+                .OrderBy(x => x.Label)
+                .ToList();
+        }
+  
+  
+
     }
 }

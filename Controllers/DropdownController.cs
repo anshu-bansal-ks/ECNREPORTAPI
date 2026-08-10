@@ -302,5 +302,128 @@ namespace ECNREPORTAPI.Controllers
             return Ok(dropdownData);
         }
 
+        [HttpGet("salsify/mcat")]
+        [AllowAnonymous]
+        public async Task<IActionResult> SalsifyMcat()
+        {
+            var data = await _svc.GetSalsifyMcatAsync();
+            return Ok(data);
+        }
+
+        [HttpGet("salsify/scat")]
+        [AllowAnonymous]
+        public async Task<IActionResult> SalsifyScat([FromQuery] string? mcat)
+        {
+            var data = await _svc.GetSalsifyScatAsync(mcat);
+            return Ok(data);
+        }
+
+        [HttpGet("itemcategories")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ItemCategories([FromQuery] string compId)
+        {
+            if (string.IsNullOrWhiteSpace(compId))
+                return BadRequest("compId required");
+
+            var data = await _svc.GetLnkItemCategoriesAsync(compId);
+
+            var dropdown = _svc.ToDropdownFromItemCategories(data);
+
+            return Ok(dropdown);
+        }
+
+        [HttpGet("pricepages")]
+        [AllowAnonymous]
+        public async Task<IActionResult> PricePages(
+            [FromQuery] string compId,
+            [FromQuery] string supplierId)
+        {
+            if (string.IsNullOrWhiteSpace(compId))
+                return BadRequest("compId required");
+
+            if (string.IsNullOrWhiteSpace(supplierId))
+                return BadRequest("supplierId required");
+
+            var data = await _svc.GetPricePageListAsync(compId, supplierId);
+
+            var dropdown = _svc.ToDropdownFromPricePages(data);
+
+            return Ok(dropdown);
+        }
+
+        [HttpGet("terms")]
+        [AllowAnonymous]
+        public async Task<IActionResult> Terms([FromQuery] string compId)
+        {
+            if (string.IsNullOrWhiteSpace(compId))
+                return BadRequest("compId required");
+
+            var data = await _svc.GetTermsListAsync(compId);
+
+            var dropdown = _svc.ToDropdownFromTerms(data);
+
+            return Ok(dropdown);
+        }
+
+        [HttpGet("classnumbers")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ClassNumbers([FromQuery] string compId)
+        {
+            if (string.IsNullOrWhiteSpace(compId))
+                return BadRequest("compId required");
+
+            var data = await _svc.GetClassNumbersAsync(compId);
+
+            var dropdown = _svc.ToDropdownFromClassNumbers(data);
+
+            return Ok(dropdown);
+        }
+
+        [HttpGet("classid")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ClassId(
+            [FromQuery] string compId,
+            [FromQuery] string classNumber)
+        {
+            if (string.IsNullOrWhiteSpace(compId))
+                return BadRequest("compId required");
+
+            if (string.IsNullOrWhiteSpace(classNumber))
+                return BadRequest("classNumber required");
+
+            var data = await _svc.GetClassIdAsync(compId, classNumber);
+
+            var dropdown = _svc.ToDropdownFromClassId(data);
+
+            return Ok(dropdown);
+        }
+
+        [HttpGet("purchaseclass")]
+        [AllowAnonymous]
+        public async Task<IActionResult> PurchaseClass([FromQuery] string compId)
+        {
+            if (string.IsNullOrWhiteSpace(compId))
+                return BadRequest("compId required");
+
+            var data = await _svc.GetPurchaseClassAsync(compId);
+
+            var dropdown = _svc.ToDropdownFromPurchaseClass(data);
+
+            return Ok(dropdown);
+        }
+        [HttpGet("productgroup")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ProductGroup([FromQuery] string compId)
+        {
+            if (string.IsNullOrWhiteSpace(compId))
+                return BadRequest("compId required");
+
+            var data = await _svc.GetProductGroupAsync(compId);
+
+            var dropdown = _svc.ToDropdownFromProductGroup(data);
+
+            return Ok(dropdown);
+        }
+
     }
 }

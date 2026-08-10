@@ -85,6 +85,35 @@ namespace ECNREPORTAPI.Services.Excel
             int rowCount = ws.Dimension.Rows; // Data rows + Header
             int dataStartRow = 2;
 
+            // Sales by Loc by Customer Highlight
+            if (reportName.Equals("salesbylocbycustomer", StringComparison.OrdinalIgnoreCase) ||
+                reportName.Equals("salesbylocbycustomerforvendor", StringComparison.OrdinalIgnoreCase))
+            {
+                int defaultLocCol = -1;
+                int njCol = -1;
+                int flCol = -1;
+                int caCol = -1;
+
+                for (int c = 1; c <= colCount; c++)
+                {
+                    string h = CleanHeader(ws.Cells[1, c].Text);
+
+                    if (h == "defaultloc") defaultLocCol = c;
+                    else if (h == "nj") njCol = c;
+                    else if (h == "fl") flCol = c;
+                    else if (h == "ca") caCol = c;
+                }
+
+                for (int r = 2; r <= rowCount; r++)
+                {
+                    string defaultLoc = ws.Cells[r, defaultLocCol].Text.Trim().ToUpper();
+
+                    HighlightCell(ws, r, njCol, defaultLoc != "NJ");
+                    HighlightCell(ws, r, flCol, defaultLoc != "FL");
+                    HighlightCell(ws, r, caCol, defaultLoc != "CA");
+                }
+            }
+
             // 3. Column Formatting
             for (int col = 1; col <= colCount; col++)
             {
@@ -103,7 +132,7 @@ namespace ECNREPORTAPI.Services.Excel
                 {
                     ws.Column(col).Style.Numberformat.Format = "#,##0";
                 }
-                else if (cleanHeader.Contains("weight") ||cleanHeader.Contains("discount"))
+                else if (cleanHeader.Contains("weight") ||cleanHeader.Contains("discount") ||cleanHeader.Contains("margin"))
                 {
                     ws.Column(col).Style.Numberformat.Format = "#,##0.00";
                 }
@@ -132,13 +161,48 @@ namespace ECNREPORTAPI.Services.Excel
                 int footerRow = rowCount + 1;
                 string salesCellAddr = "";
                 string costCellAddr = "";
+                string grossProfitCellAddr = "";
+                string lytdCellAddr = "";
+                string ytdCellAddr = "";
+                string changeCellAddr = "";
 
                 // Sales aur Cost columns ke address find karein footer calculation ke liye
+                // for (int col = 1; col <= colCount; col++)
+                // {
+                //     string h = CleanHeader(ws.Cells[1, col].Text);
+                //     if (h.Contains("sales") || h.Contains("merch")) salesCellAddr = GetExcelColumnLetter(col) + footerRow;
+                //     if (h.Contains("cost")) costCellAddr = GetExcelColumnLetter(col) + footerRow;
+                //     if (h == "lytd")
+                //         lytdCellAddr = GetExcelColumnLetter(col) + footerRow;
+
+                //     if (h == "ytd")
+                //         ytdCellAddr = GetExcelColumnLetter(col) + footerRow;
+
+                //     if (h == "change")
+                //         changeCellAddr = GetExcelColumnLetter(col) + footerRow;
+                // }
                 for (int col = 1; col <= colCount; col++)
                 {
                     string h = CleanHeader(ws.Cells[1, col].Text);
-                    if (h.Contains("sales") || h.Contains("merch")) salesCellAddr = GetExcelColumnLetter(col) + footerRow;
-                    if (h.Contains("cost")) costCellAddr = GetExcelColumnLetter(col) + footerRow;
+                    string addr = GetExcelColumnLetter(col) + footerRow;
+
+                    if (h.Contains("sales") || h.Contains("merch"))
+                        salesCellAddr = addr;
+
+                    if (h.Contains("cost"))
+                        costCellAddr = addr;
+
+                    if (h == "grossprofit")
+                        grossProfitCellAddr = addr;
+
+                    if (h == "lytd")
+                        lytdCellAddr = addr;
+
+                    if (h == "ytd")
+                        ytdCellAddr = addr;
+
+                    if (h == "change")
+                        changeCellAddr = addr;
                 }
 
                 if (!string.IsNullOrEmpty(labelColumn))
@@ -165,27 +229,88 @@ namespace ECNREPORTAPI.Services.Excel
                             currentCell.Style.Font.Bold = true;
                             currentCell.Style.Border.Top.Style = ExcelBorderStyle.Double;
 
-                            if (cleanTC.Contains("percent"))
+                            // if (cleanTC.Contains("percent"))
+                            // {
+                            //     if (!string.IsNullOrEmpty(salesCellAddr) && !string.IsNullOrEmpty(costCellAddr))
+                            //     {
+                            //         // SQL Logic: ((Sales - Cost) / Sales) * 100
+                            //         currentCell.Formula = $"=IF({salesCellAddr}=0, 0, ROUND(({salesCellAddr}-{costCellAddr})/{salesCellAddr}*100, 1))";
+                            //         currentCell.Style.Numberformat.Format = "0.0\"%\"";
+                            //     }
+                            // }
+                            // else if (cleanTC.Contains("grossprofit"))
+                            // {
+                            //     if (!string.IsNullOrEmpty(salesCellAddr) && !string.IsNullOrEmpty(costCellAddr))
+                            //     {
+                            //         currentCell.Formula = $"={salesCellAddr}-{costCellAddr}";
+                            //         currentCell.Style.Numberformat.Format = "$#,##0.00";
+                            //     }
+                            // }
+                            if (cleanTC == "change")
                             {
-                                if (!string.IsNullOrEmpty(salesCellAddr) && !string.IsNullOrEmpty(costCellAddr))
+                                if (!string.IsNullOrEmpty(ytdCellAddr) &&
+                                    !string.IsNullOrEmpty(lytdCellAddr))
                                 {
-                                    // SQL Logic: ((Sales - Cost) / Sales) * 100
-                                    currentCell.Formula = $"=IF({salesCellAddr}=0, 0, ROUND(({salesCellAddr}-{costCellAddr})/{salesCellAddr}*100, 1))";
-                                    currentCell.Style.Numberformat.Format = "0.0\"%\"";
+                                    currentCell.Formula = $"={ytdCellAddr}-{lytdCellAddr}";
+                                    currentCell.Style.Numberformat.Format = "$#,##0.00";
+                                }
+                                else
+                                {
+                                    currentCell.Formula = $"SUM({ws.Cells[dataStartRow, col, rowCount, col].Address})";
+                                    currentCell.Style.Numberformat.Format = "$#,##0.00";
                                 }
                             }
                             else if (cleanTC.Contains("grossprofit"))
                             {
-                                if (!string.IsNullOrEmpty(salesCellAddr) && !string.IsNullOrEmpty(costCellAddr))
+                                if (!string.IsNullOrEmpty(salesCellAddr) &&
+                                    !string.IsNullOrEmpty(costCellAddr))
                                 {
                                     currentCell.Formula = $"={salesCellAddr}-{costCellAddr}";
-                                    currentCell.Style.Numberformat.Format = "$#,##0.00";
                                 }
+                                else
+                                {
+                                    currentCell.Formula = $"SUM({ws.Cells[dataStartRow, col, rowCount, col].Address})";
+                                }
+
+                                currentCell.Style.Numberformat.Format = "$#,##0.00";
+                            }
+                            else if (cleanTC.Contains("percent"))
+                            {
+                                // ===== Change / LYTD =====
+                                if (!string.IsNullOrEmpty(changeCellAddr) &&
+                                    !string.IsNullOrEmpty(lytdCellAddr))
+                                {
+                                    currentCell.Formula =
+                                        $"=IF({lytdCellAddr}=0,0,ROUND({changeCellAddr}/{lytdCellAddr}*100,1))";
+                                }
+
+                                // ===== Gross Profit / Sales =====
+                                else if (!string.IsNullOrEmpty(grossProfitCellAddr) &&
+                                        !string.IsNullOrEmpty(salesCellAddr))
+                                {
+                                    currentCell.Formula =
+                                        $"=IF({salesCellAddr}=0,0,ROUND({grossProfitCellAddr}/{salesCellAddr}*100,1))";
+                                }
+
+                                // ===== (Sales-Cost)/Sales =====
+                                else if (!string.IsNullOrEmpty(salesCellAddr) &&
+                                        !string.IsNullOrEmpty(costCellAddr))
+                                {
+                                    currentCell.Formula =
+                                        $"=IF({salesCellAddr}=0,0,ROUND(({salesCellAddr}-{costCellAddr})/{salesCellAddr}*100,1))";
+                                }
+
+                                else
+                                {
+                                    currentCell.Value = 0;
+                                }
+
+                                currentCell.Style.Numberformat.Format = "0.0\"%\"";
                             }
                             else
                             {
                                 currentCell.Formula = $"SUM({ws.Cells[dataStartRow, col, rowCount, col].Address})";
-                                if (cleanTC.Contains("qty"))
+                                if (cleanTC.Contains("qty") ||cleanTC.Contains("units"))
                                 {
                                     currentCell.Style.Numberformat.Format = "#,##0";
                                 }
@@ -218,6 +343,21 @@ namespace ECNREPORTAPI.Services.Excel
             ws.View.FreezePanes(2, 1);
 
             return package.GetAsByteArray();
+        }
+        private void HighlightCell(ExcelWorksheet ws, int row, int col, bool shouldHighlight)
+        {
+            if (col <= 0) return;
+
+            if (decimal.TryParse(
+                ws.Cells[row, col].Text.Replace("$", "").Replace(",", ""),
+                out decimal value))
+            {
+                if (shouldHighlight && value != 0)
+                {
+                    ws.Cells[row, col].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                    ws.Cells[row, col].Style.Fill.BackgroundColor.SetColor(Color.Orange);
+                }
+            }
         }
     }
 }

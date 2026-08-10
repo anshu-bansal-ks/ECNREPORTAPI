@@ -69,7 +69,7 @@ namespace ECNREPORTAPI.Controllers
             // 4. Generate Excel
             var fileBytes = _excel.ExportDynamicListToExcel(
                 dataToExport, 
-                reportTitle, 
+                reportName, 
                 req.TotalColumns, 
                 req.LabelColumn,
                 excludeColumns

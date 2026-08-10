@@ -38,7 +38,7 @@ namespace ECNREPORTAPI.Services
                     if (!File.Exists(filePath)) return null;
 
                     string sql = (await File.ReadAllTextAsync(filePath)).Replace("{dashboard}", _dashboard);
-                    
+                    sql = ApplyTopN(sql, filters);
                     
                     var p = new DynamicParameters();
                     p.Add("@compId", compId);
@@ -63,7 +63,45 @@ namespace ECNREPORTAPI.Services
 
                     var excelData = ProcessHardReportExcel(result.Data, result.Months);
                     return new { Data = result.Data, ExcelData = excelData, Months = result.Months };
-                }              
+                }  
+                else if (rName == "thirteenmonthsales")
+                {
+                    string repId = filters.GetValueOrDefault("repId", "ALL");
+
+                    var model = new ThirteenMonthSales(_config);
+                    var result = await model.GetDataAsync(compId, repId);
+
+                    var excelData = ProcessSalesExcel(result.Data, result.Months);
+                    return new { Data = result.Data, ExcelData = excelData, Months = result.Months };
+                }
+
+                // 3. Thirteen Month Vendor Sales For Customer
+              else if (rName == "thirteenmonthvendorsalesforcustomer")
+                {
+                    string repId = filters.GetValueOrDefault("repId", "ALL");
+                    int customerId = int.Parse(filters.GetValueOrDefault("custId", "0"));
+
+                    var model = new ThirteenMonthVendorSalesForCustomer(_config);
+                    var result = await model.GetDataAsync(compId, repId, customerId);
+
+                    var excelData = ProcessVendorSalesExcel(result.Data, result.Months);
+                    return new { Data = result.Data, ExcelData = excelData, Months = result.Months };
+                }    
+                else if (rName == "topcustomersytdvlytdwithmargin")
+                {
+                    string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Reports", "Queries", "topcustomersytdvlytdwithmargin.sql");
+                    if (!File.Exists(filePath)) return null;
+
+                    string sql = await File.ReadAllTextAsync(filePath);
+                    
+                    sql = ApplyTopN(sql, filters);
+
+                    var p = new DynamicParameters();
+                    p.Add("repId", filters.GetValueOrDefault("repId", "ALL"));
+
+                    var rawData = (await con.QueryAsync<dynamic>(sql, p, commandTimeout: 300)).ToList();
+                    return new { Data = rawData, ExcelData = rawData };
+                }      
 
                 return await HandleSimpleReport(con, rName, filters, compId,common);
                 }
@@ -76,7 +114,10 @@ namespace ECNREPORTAPI.Services
         public static readonly Dictionary<string, dynamic> FOOTER_TOTAL_CONFIG = new()
         {
             { "lowprofitreport", new { labelColumn = "rep", totalColumns = new[] { "sales_amount", "shipping_cost", "gross_profit", "profit_percent" } } },
-            { "itemwithpriceandcost", new { labelColumn = "item_desc", totalColumns = new[] { "price1", "cost" } } }
+            { "itemwithpriceandcost", new { labelColumn = "item_desc", totalColumns = new[] { "price1", "cost" } } },
+            { "saleshistoryforitemprefixitemtotalsforallitems", new {  labelColumn = "item_desc", totalColumns = new[] { "qty", "SALES" }}},
+            { "saleshistoryforitemprefixitemtotalsforallitemswithprofit", new {  labelColumn = "item_desc", totalColumns = new[] { "qty", "SALES" }}}
+
         };
         private async Task<object?> HandleSimpleReport(SqlConnection con, string rName, Dictionary<string, string> filters, string compId, Models.Common common)
         {
@@ -102,20 +143,63 @@ namespace ECNREPORTAPI.Services
 
                 string sql = await File.ReadAllTextAsync(filePath);
                 sql = sql.Replace("{dashboard}", _dashboard);
+                sql = ApplyTopN(sql, filters);
+
+                if (sql.Contains("{subSql}"))
+                {
+                    string subSql = compId.Equals("XG", StringComparison.OrdinalIgnoreCase)
+                        ? ",CAST(PA_QTY AS INT) AS PA"
+                        : @",
+                        CAST(NJ_QTY AS INT) AS NJ
+                        ,CAST(FL_QTY AS INT) AS FL
+                        ,CAST(CA_QTY AS INT) AS CA";
+
+                    sql = sql.Replace("{subSql}", subSql);
+                }
+
+                if (sql.Contains("{QtyColumns}"))
+                {
+                    string qtyColumns = compId.Equals("XG", StringComparison.OrdinalIgnoreCase)
+                        ? @",CAST(DA_INVQTY.PA_Qty AS INT) AS PA,
+                        CAST(DA_INVQTY.PA_On_Order AS INT) AS PA_PO"
+                                : @",
+                        CAST(DA_INVQTY.NJ_QTY AS INT) AS NJ,
+                        CAST(DA_INVQTY.NJ_On_Order AS INT) AS NJ_PO,
+                        CAST(DA_INVQTY.FL_QTY AS INT) AS FL,
+                        CAST(DA_INVQTY.FL_On_Order AS INT) AS FL_PO,
+                        CAST(DA_INVQTY.CA_Qty AS INT) AS CA,
+                        CAST(DA_INVQTY.CA_On_Order AS INT) AS CA_PO";
+
+                    sql = sql.Replace("{QtyColumns}", qtyColumns);
+                }
+
                 string dateRange = GetDateRangeSnippet(filters);
                 if (sql.Contains("{dateRange}"))
                     sql = sql.Replace("{dateRange}", GetDateRangeSnippet(filters));
                 string prevDateRange = GetPreviousYearDateRangeSnippet(filters);
                 if (sql.Contains("{prevDateRange}"))
                     sql = sql.Replace("{prevDateRange}", prevDateRange);
+                
+               if (sql.Contains("{classnumber}"))
+                {
+                    sql = sql.Replace(
+                        "{classnumber}",
+                        filters.GetValueOrDefault("classnumber")
+                    );
+                }
 
                 var p = PrepareParameters(filters, compId);   
+                if (rName == "salesbycustomerforvendor" || rName == "salesbycustomerfromaspecifiedstateforvendor")
+                {
+                    p.Add("year", DateTime.Now.Year - 2, DbType.Int32);
+                }
+
                                        
                 string locationid = filters.GetValueOrDefault("locationId") ?? "ALL";
                 locationid = locationid.Trim();
                 string LocationList = "";
 
-                if (!String.IsNullOrEmpty(locationid) && (locationid == "All" || locationid == "ALL"))
+               if (locationid.Equals("ALL", StringComparison.OrdinalIgnoreCase))
                 {
                     // Dropdown service se list lekar variable me pass kiya
                     string locType = filters.GetValueOrDefault("locType") ?? "WAREHOUSE";
@@ -136,7 +220,7 @@ namespace ECNREPORTAPI.Services
                     p.Add("LocationList", locationList);
                 }
                 var rawData = (await con.QueryAsync<dynamic>(sql, p, commandTimeout: 300)).ToList();
-               var reportTotals = new Dictionary<string, decimal>();
+                var reportTotals = new Dictionary<string, decimal>();
                 var config = FOOTER_TOTAL_CONFIG.ContainsKey(rName) ? FOOTER_TOTAL_CONFIG[rName] : null;
                 int pageNum = int.TryParse(filters.GetValueOrDefault("pageNumber"), out int pn) ? pn : 1;
                 
@@ -236,6 +320,7 @@ namespace ECNREPORTAPI.Services
                 }
             catch (Exception ex)
             {
+                  Console.WriteLine(ex.ToString());
                 System.Diagnostics.Debug.WriteLine($"❌ Error in HandleSimpleReport ({rName}): {ex.Message}");
                 return null;
             }
@@ -256,6 +341,23 @@ namespace ECNREPORTAPI.Services
             return new { Data = rawData, ExcelData = excelData };
         }
         
+        private string ApplyTopN(string sql, Dictionary<string, string> filters)
+        {
+            string topn = filters.GetValueOrDefault("topn", "ALL");
+
+            string topsub = topn switch
+            {
+                "10" => "TOP 10",
+                "25" => "TOP 25",
+                "50" => "TOP 50",
+                "100" => "TOP 100",
+                "200" => "TOP 200",
+                _ => ""
+            };
+
+            return sql.Replace("{topsub}", topsub);
+        }
+
         private List<IDictionary<string, object>> ProcessHardReportExcel(List<Suppliers> data, List<Monthsupp> months)
         {
             var formattedList = new List<IDictionary<string, object>>();
@@ -290,7 +392,67 @@ namespace ECNREPORTAPI.Services
             return formattedList;
         }
 
-        // --- HELPERS ---
+        private List<IDictionary<string, object>> ProcessSalesExcel(List<SalesCustomer> data, List<SalesMonthsupp> months)
+        {
+            var formattedList = new List<IDictionary<string, object>>();
+            foreach (var item in data)
+            {
+                var row = new Dictionary<string, object>();
+                row["Customer ID"] = item.customer_id;
+                row["Customer Name"] = item.customer_name;
+                row["Rep"] = item.rep;
+
+                for (int i = 1; i <= months.Count; i++)
+                {
+                    var prop = typeof(SalesCustomer).GetProperty($"mon{i}");
+                    string rawVal = prop?.GetValue(item)?.ToString() ?? "0";
+                    if (decimal.TryParse(rawVal, out decimal d))
+                    {
+                        row[months[i - 1].month] = Convert.ToInt64(Math.Round(d, 0));
+                    }
+                    else
+                    {
+                        row[months[i - 1].month] = 0;
+                    }
+                }
+                row["Total"] = Convert.ToInt64(Math.Round(item.Total, 0));
+                formattedList.Add(row);
+            }
+            return formattedList;
+        }
+
+        private List<IDictionary<string, object>> ProcessVendorSalesExcel(List<VendorCustomerItem> data, List<VendorMonthsupp> months)
+        {
+            var formattedList = new List<IDictionary<string, object>>();
+            foreach (var item in data)
+            {
+                var row = new Dictionary<string, object>();
+                row["Customer ID"] = item.customer_id;
+                row["Customer Name"] = item.customer_name;
+                row["Supplier ID"] = item.supplier_id;
+                row["Supplier Name"] = item.supplier_name;
+                row["Rep"] = item.rep;
+
+                for (int i = 1; i <= months.Count; i++)
+                {
+                    var prop = typeof(VendorCustomerItem).GetProperty($"mon{i}");
+                    string rawVal = prop?.GetValue(item)?.ToString() ?? "0";
+                    if (decimal.TryParse(rawVal, out decimal d))
+                    {
+                        row[months[i - 1].month] = Convert.ToInt64(Math.Round(d, 0));
+                    }
+                    else
+                    {
+                        row[months[i - 1].month] = 0;
+                    }
+                }
+                row["Total"] = Convert.ToInt64(Math.Round(item.Total, 0));
+                formattedList.Add(row);
+            }
+            return formattedList;
+        }
+
+
         private void NormalizeFilters(Dictionary<string, string> f)
         {
             
@@ -301,9 +463,14 @@ namespace ECNREPORTAPI.Services
             }
             if (f.ContainsKey("stockable")) {
                 f["stockable"] = f["stockable"]?.ToLower() == "true" ? "true" : "false";
-                } else {
-                    f["stockable"] = "false";
-                }
+            } else {
+                f["stockable"] = "false";
+            }
+            if (f.ContainsKey("discontinued")) {
+                f["discontinued"] = f["discontinued"]?.ToLower() == "true" ? "true" : "false";
+            } else {
+                f["discontinued"] = "false";
+            }
         }
 
         private string GetDateRangeSnippet(Dictionary<string, string> f)
@@ -383,14 +550,45 @@ namespace ECNREPORTAPI.Services
                     p.Add("minqty", 0, DbType.Int32); 
                 }
             }
+            if (f.ContainsKey("mcat"))
+                p.Add("mcat", f["mcat"], DbType.String);
+            else
+                p.Add("mcat", "", DbType.String);
+
+            if (f.ContainsKey("scat"))
+                p.Add("scat", f["scat"], DbType.String);
+            else
+                p.Add("scat", "", DbType.String);
+            if (f.ContainsKey("AllPO"))
+                p.Add("AllPO", f["AllPO"], DbType.String);
+            else
+                p.Add("AllPO", "false", DbType.String);
+
+            // PO Number
+            if (f.ContainsKey("pono"))
+                p.Add("pono", f["pono"], DbType.String);
+            else
+                p.Add("pono", "", DbType.String);
+            if (f.ContainsKey("supplierId"))
+                p.Add("supplierId", f["supplierId"], DbType.String);
+            else
+                p.Add("supplierId", "", DbType.String);
+
+            // Product Group
+            if (f.ContainsKey("productgroup"))
+                p.Add("productgroup", f["productgroup"], DbType.String);
+            else
+                p.Add("productgroup", "", DbType.String);
+                
             foreach (var item in f)
             {
                 string key = item.Key;
                 string keyLower = key.ToLower();
                 if (keyLower == "fromdate" || keyLower == "tilldate" || keyLower == "timeperiod" || 
                     keyLower == "pagenumber" || keyLower == "pagesize" || keyLower == "isexport" || 
-                    keyLower == "daysold" ||  keyLower == "minqty" || keyLower == "locationid" ||
-                     keyLower == "locationlist") 
+                    keyLower == "daysold" ||  keyLower == "minqty" || keyLower == "locationId" ||
+                    keyLower == "locationlist" ||keyLower == "minqty" || keyLower == "mcat" || keyLower == "allpo" ||
+                    keyLower == "pono"  || keyLower == "supplierid" || keyLower == "productgroup") 
                     continue;
 
                 p.Add(key, item.Value);
@@ -411,6 +609,7 @@ namespace ECNREPORTAPI.Services
                 p.Add("compId", compId);
 
             return p;
+            
         }
     }
 }

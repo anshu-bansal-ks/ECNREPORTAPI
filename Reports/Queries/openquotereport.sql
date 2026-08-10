@@ -7,7 +7,7 @@ SELECT oe_hdr_salesrep.salesrep_id
 , inv_mast.item_id
 , inv_mast.item_desc
 ,CAST(oe_line.qty_ordered AS INT) as qty_ordered
-FROM	oe_hdr with (nolock) join 
+FROM oe_hdr with (nolock) join 
 oe_hdr_salesrep (nolock) on oe_hdr.order_no = oe_hdr_salesrep.order_number join 
 oe_line (nolock) on oe_hdr.order_no = oe_line.order_no join 
 inv_mast with (nolock) on inv_mast.inv_mast_uid = oe_line.inv_mast_uid join 
