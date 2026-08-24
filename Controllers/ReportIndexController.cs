@@ -4,7 +4,7 @@ using ECNREPOTINGPORTAL.Models;
 using Microsoft.AspNetCore.Authorization;   // ← YE ADD KARNA ZAROORI THA!
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("[controller]")]
 [Authorize]
 public class ReportIndexController : ControllerBase
 {

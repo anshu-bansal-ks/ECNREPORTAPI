@@ -3,6 +3,7 @@ using Microsoft.Data.SqlClient;
 using System.Data;
 using System.Globalization;
 using ECNREPORTAPI.Models;
+using System.Text;
 
 namespace ECNREPORTAPI.Services
 {
@@ -75,7 +76,6 @@ namespace ECNREPORTAPI.Services
                     return new { Data = result.Data, ExcelData = excelData, Months = result.Months };
                 }
 
-                // 3. Thirteen Month Vendor Sales For Customer
               else if (rName == "thirteenmonthvendorsalesforcustomer")
                 {
                     string repId = filters.GetValueOrDefault("repId", "ALL");
@@ -125,7 +125,6 @@ namespace ECNREPORTAPI.Services
             {
                 string actualReportName = rName;
                 
-                // 🔥 SWITCHING SUFFIXES INSIDE ENGINE (Bina SQL ko chhede aur bina nayi function banaye)
                 if (rName == "discitemswithbinqtyflags")
                 {
                     string dataVersionInput = filters.GetValueOrDefault("Dataversion", "All Data").ToLower().Trim();
@@ -156,6 +155,71 @@ namespace ECNREPORTAPI.Services
 
                     sql = sql.Replace("{subSql}", subSql);
                 }
+                if (sql.Contains("{subQuery}"))
+                {
+                    string subQuery = compId.Equals("XG", StringComparison.OrdinalIgnoreCase)
+                        ? ",CAST(vq.PA_Qty AS INT) AS PA"
+                        : @",
+                         CAST(vq.NJ_QTY AS INT) AS NJ
+                        ,CAST(vq.FL_Qty AS INT) AS FL
+                        ,CAST(vq.CA_Qty AS INT) AS CA";
+
+                    sql = sql.Replace("{subQuery}", subQuery);
+                }
+                if (sql.Contains("{Qtydisstats}"))
+                {
+                    string Qtydisstats = compId.Equals("XG", StringComparison.OrdinalIgnoreCase)
+                        ? @",CAST(V_QTY.PA_QTY AS INT) AS PA_QTY
+                        ,CAST(V_QTY.PA_On_Order AS INT) AS PA_On_Order"
+                                : @",
+                        CAST(V_QTY.nj_Qty AS INT) AS nj_Qty
+                        ,CAST(V_QTY.nj_On_Order AS INT) AS nj_On_Order
+                        ,CAST(V_QTY.FL_Qty AS INT) AS FL_Qty
+                        ,CAST(V_QTY.FL_On_Order AS INT) AS FL_On_Order
+                        ,CAST(V_QTY.ca_Qty AS INT) AS ca_Qty
+                        ,CAST(V_QTY.ca_On_Order AS INT) AS ca_On_Order";
+
+                    sql = sql.Replace("{Qtydisstats}", Qtydisstats);
+                }
+                 if (sql.Contains("{QtySubQuery}"))
+                {
+                    string QtySubQuery = compId.Equals("XG", StringComparison.OrdinalIgnoreCase)
+                        ? @",CAST(V_QTY.PA_QTY AS INT) AS PA"
+                                : @",
+                        CAST(V_QTY.NJ_QTY AS INT) AS NJ
+                        ,CAST(V_QTY.FL_Qty AS INT) AS FL
+                        ,CAST(V_QTY.CA_Qty AS INT) AS CA";
+
+                    sql = sql.Replace("{QtySubQuery}", QtySubQuery);
+                }
+
+                if (sql.Contains("{Qtystats}"))
+                {
+                    string Qtystats;
+
+                    if (compId.Equals("XG", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Qtystats = @"
+                        ,CAST(V_QTY.PA_Qty AS INT) AS PA";
+                    }
+                    else if (compId.Equals("ADV", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Qtystats = @"
+                        ,CAST(V_QTY.NJ_QTY AS INT) AS NJ
+                        ,CAST(V_QTY.FL_Qty AS INT) AS FL
+                        ,CAST(V_QTY.CA_Qty AS INT) AS CA
+                        ,CAST(V_QTY.LV_Qty AS INT) AS LV";
+                    }
+                    else
+                    {
+                        Qtystats = @"
+                        ,CAST(V_QTY.NJ_QTY AS INT) AS NJ
+                        ,CAST(V_QTY.FL_Qty AS INT) AS FL
+                        ,CAST(V_QTY.CA_Qty AS INT) AS CA";
+                    }
+
+                    sql = sql.Replace("{Qtystats}", Qtystats);
+                }
 
                 if (sql.Contains("{QtyColumns}"))
                 {
@@ -180,6 +244,45 @@ namespace ECNREPORTAPI.Services
                 if (sql.Contains("{prevDateRange}"))
                     sql = sql.Replace("{prevDateRange}", prevDateRange);
                 
+                if (rName == "salesbysupplierforgroupcodeytdcomparison")
+                {
+                    DateTime today = DateTime.Today;
+                    DateTime currentFrom = new DateTime(today.Year, 1, 1);
+                    DateTime currentTill = today;
+                    DateTime lastFrom = new DateTime(today.Year - 1, 1, 1);
+                    DateTime lastTill;
+
+                    string comparison = filters.GetValueOrDefault(
+                        "ytdcomparison",
+                        "YTD v LYTD"
+                    );
+
+                    if (comparison.Equals("YTD v LY", StringComparison.OrdinalIgnoreCase))
+                    {
+                        lastTill = new DateTime(today.Year - 1, 12, 31);
+                    }
+                    else
+                    {
+                        lastTill = today.AddYears(-1);
+                    }
+
+                    string currentYearDateRange =
+                        $"'{currentFrom:MM/dd/yyyy} 00:00:00' AND '{currentTill:MM/dd/yyyy} 23:59:59'";
+
+                    string lastYearDateRange =
+                        $"'{lastFrom:MM/dd/yyyy} 00:00:00' AND '{lastTill:MM/dd/yyyy} 23:59:59'";
+
+                    sql = sql.Replace(
+                        "{currentYearDateRange}",
+                        currentYearDateRange
+                    );
+
+                    sql = sql.Replace(
+                        "{lastYearDateRange}",
+                        lastYearDateRange
+                    );
+                }
+
                if (sql.Contains("{classnumber}"))
                 {
                     sql = sql.Replace(
@@ -188,7 +291,42 @@ namespace ECNREPORTAPI.Services
                     );
                 }
 
-                var p = PrepareParameters(filters, compId);   
+                var p = PrepareParameters(filters, compId); 
+
+                if (sql.Contains("{locationColumns}"))
+                {
+                string locType = filters.GetValueOrDefault("locType","WAREHOUSE");
+
+                var locList = await _dropdownService.GetLocationListAsync(compId, locType
+                );
+
+                var locQuery = new StringBuilder();
+
+                foreach (var loc in locList)
+                {
+                    if (string.IsNullOrWhiteSpace(loc.location_id) ||
+                        string.IsNullOrWhiteSpace(loc.state))
+                        continue;
+
+                    string state = loc.state.Replace("]", "]]");
+
+                    locQuery.AppendLine(
+                        $",CAST(SUM(IIF(l.location_id = {loc.location_id}, qty_shipped, 0)) AS INT) AS [{state}]"
+                    );
+
+                    p.Add(
+                        $"{loc.location_id}",
+                        loc.location_id,
+                        DbType.String
+                    );
+                }
+
+                sql = sql.Replace(
+                    "{locationColumns}",
+                    locQuery.ToString()
+                );
+            }
+
                 if (rName == "salesbycustomerforvendor" || rName == "salesbycustomerfromaspecifiedstateforvendor")
                 {
                     p.Add("year", DateTime.Now.Year - 2, DbType.Int32);
@@ -201,7 +339,6 @@ namespace ECNREPORTAPI.Services
 
                if (locationid.Equals("ALL", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Dropdown service se list lekar variable me pass kiya
                     string locType = filters.GetValueOrDefault("locType") ?? "WAREHOUSE";
                     LocationList = await _dropdownService.GetLocationByListAsync(compId, locType);
                    
@@ -220,6 +357,23 @@ namespace ECNREPORTAPI.Services
                     p.Add("LocationList", locationList);
                 }
                 var rawData = (await con.QueryAsync<dynamic>(sql, p, commandTimeout: 300)).ToList();
+                
+                string? salesLyLabel = null;
+
+                if (rName == "salesbysupplierforgroupcodeytdcomparison")
+                {
+                    string comparison = filters.GetValueOrDefault(
+                        "ytdcomparison",
+                        "YTD v LYTD"
+                    );
+
+                    salesLyLabel = comparison.Equals(
+                        "YTD v LY",
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                        ? "Sales LY"
+                        : "Sales LYTD";
+                }
                 var reportTotals = new Dictionary<string, decimal>();
                 var config = FOOTER_TOTAL_CONFIG.ContainsKey(rName) ? FOOTER_TOTAL_CONFIG[rName] : null;
                 int pageNum = int.TryParse(filters.GetValueOrDefault("pageNumber"), out int pn) ? pn : 1;
@@ -238,7 +392,6 @@ namespace ECNREPORTAPI.Services
                         totalParams,
                         commandTimeout: 300)).ToList();
 
-                    // Low Profit Report special calculation
                     if (rName == "lowprofitreport")
                     {
                         
@@ -459,7 +612,7 @@ namespace ECNREPORTAPI.Services
             if (f.ContainsKey("binzero")) {
                 f["binzero"] = f["binzero"].ToLower() == "true" ? "true" : "false";
             } else {
-                f["binzero"] = "false"; // Default false
+                f["binzero"] = "false"; 
             }
             if (f.ContainsKey("stockable")) {
                 f["stockable"] = f["stockable"]?.ToLower() == "true" ? "true" : "false";
@@ -470,6 +623,14 @@ namespace ECNREPORTAPI.Services
                 f["discontinued"] = f["discontinued"]?.ToLower() == "true" ? "true" : "false";
             } else {
                 f["discontinued"] = "false";
+            }
+            if (f.ContainsKey("status"))
+            {
+                f["status"] = f["status"]?.ToLower() == "true" ? "true" : "false";
+            }
+            else
+            {
+                f["status"] = "false";
             }
         }
 
@@ -526,6 +687,7 @@ namespace ECNREPORTAPI.Services
         private DynamicParameters PrepareParameters(Dictionary<string, string> f, string compId)
         {
             var p = new DynamicParameters();
+            AddMonthYearParameters(p, f);
             
             bool isExport = f.ContainsKey("isExport") && f["isExport"].ToLower() == "true";
             if (f.ContainsKey("daysold"))
@@ -564,7 +726,6 @@ namespace ECNREPORTAPI.Services
             else
                 p.Add("AllPO", "false", DbType.String);
 
-            // PO Number
             if (f.ContainsKey("pono"))
                 p.Add("pono", f["pono"], DbType.String);
             else
@@ -574,12 +735,136 @@ namespace ECNREPORTAPI.Services
             else
                 p.Add("supplierId", "", DbType.String);
 
-            // Product Group
             if (f.ContainsKey("productgroup"))
                 p.Add("productgroup", f["productgroup"], DbType.String);
             else
                 p.Add("productgroup", "", DbType.String);
-                
+
+            if (f.ContainsKey("rankType"))
+            {
+                string rankType = f["rankType"];
+
+                rankType = rankType.Equals("Qty", StringComparison.OrdinalIgnoreCase)
+                    ? "QTY"
+                    : "DOLLAR";
+
+                p.Add("rankType", rankType, DbType.String);
+            }
+            else
+            {
+                p.Add("rankType", "QTY", DbType.String);
+            }
+
+            if (f.ContainsKey("Alljobname"))
+                p.Add("Alljobname", f["Alljobname"], DbType.String);
+            else
+                p.Add("Alljobname", "false", DbType.String);
+
+            if (f.ContainsKey("job_name"))
+                p.Add("job_name", f["job_name"], DbType.String);
+            else
+                p.Add("job_name", "", DbType.String);
+            
+            if (f.ContainsKey("roles"))
+                p.Add("roles", f["roles"], DbType.String);
+            else
+                p.Add("roles", "ALL_ROLE", DbType.String);
+
+            if (f.ContainsKey("buyer"))
+            {
+                p.Add("buyer", f["buyer"], DbType.String);
+            }
+            else
+            {
+                p.Add("buyer", "", DbType.String);
+            }
+            if (f.ContainsKey("rolesreports"))
+            {
+                p.Add("rolesreports", f["rolesreports"], DbType.String);
+            }
+            else
+            {
+                p.Add("rolesreports", "", DbType.String);
+            }
+
+          string startRelease = f.GetValueOrDefault("startrelease", "");
+
+            if (DateTime.TryParseExact(
+                startRelease,
+                new[]
+                {
+                    "yyyy-MM-dd",
+                    "MM/dd/yyyy",
+                    "dd/MM/yyyy"
+                },
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out DateTime startReleaseDate))
+            {
+                p.Add(
+                    "startrelease",
+                    startReleaseDate,
+                    DbType.DateTime
+                );
+            }
+            else
+            {
+                p.Add(
+                    "startrelease",
+                    DBNull.Value,
+                    DbType.DateTime
+                );
+            }
+
+            string endRelease =  f.GetValueOrDefault("endrelease", "");
+
+            if (DateTime.TryParseExact(
+                endRelease,
+                new[]
+                {
+                    "yyyy-MM-dd",
+                    "MM/dd/yyyy",
+                    "dd/MM/yyyy"
+                },
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out DateTime endReleaseDate))
+            {
+                p.Add(
+                    "endrelease",
+                    endReleaseDate,
+                    DbType.DateTime
+                );
+            }
+            else
+            {
+                p.Add(
+                    "endrelease",
+                    DBNull.Value,
+                    DbType.DateTime
+                );
+            }
+
+            string maxReceivedValue = f.GetValueOrDefault("maxRecieved", "1");
+
+            if (int.TryParse(
+                maxReceivedValue,
+                out int maxReceived))
+            {
+                p.Add(
+                    "maxXrecd",
+                    maxReceived,
+                    DbType.Int32
+                );
+            }
+            else
+            {
+                p.Add(
+                    "maxXrecd",
+                    1,
+                    DbType.Int32
+                );
+            }
             foreach (var item in f)
             {
                 string key = item.Key;
@@ -588,7 +873,10 @@ namespace ECNREPORTAPI.Services
                     keyLower == "pagenumber" || keyLower == "pagesize" || keyLower == "isexport" || 
                     keyLower == "daysold" ||  keyLower == "minqty" || keyLower == "locationId" ||
                     keyLower == "locationlist" ||keyLower == "minqty" || keyLower == "mcat" || keyLower == "allpo" ||
-                    keyLower == "pono"  || keyLower == "supplierid" || keyLower == "productgroup") 
+                    keyLower == "pono"  || keyLower == "supplierid" || keyLower == "productgroup" ||  keyLower == "ranktype"
+                    || keyLower == "Alljobname" || keyLower == "job_name" || keyLower == "startrelease" || keyLower == "endrelease" ||
+                    keyLower == "maxrecieved" || keyLower == "roles" || keyLower == "buyer" || keyLower == "rolesreports" || 
+                    keyLower == "ytdcomparison")
                     continue;
 
                 p.Add(key, item.Value);
@@ -611,5 +899,48 @@ namespace ECNREPORTAPI.Services
             return p;
             
         }
+    
+    private void AddMonthYearParameters(
+    DynamicParameters p,
+    Dictionary<string, string> filters)
+    {
+    string beginDate = filters.GetValueOrDefault("begindate", "");
+
+    if (DateTime.TryParseExact(
+        beginDate,
+        new[] { "MM/yyyy", "MM/yy", "yyyy-MM" },
+        CultureInfo.InvariantCulture,
+        DateTimeStyles.None,
+        out DateTime beginDt))
+    {
+        p.Add("begper", beginDt.Month, DbType.Int32);
+        p.Add("begyr", beginDt.Year, DbType.Int32);
+    }
+    else
+    {
+        p.Add("begper", 1, DbType.Int32);
+        p.Add("begyr", 1900, DbType.Int32);
+    }
+
+    string endDate = filters.GetValueOrDefault("enddate", "");
+
+    if (DateTime.TryParseExact(
+        endDate,
+        new[] { "MM/yyyy", "MM/yy", "yyyy-MM" },
+        CultureInfo.InvariantCulture,
+        DateTimeStyles.None,
+        out DateTime endDt))
+    {
+        p.Add("endper", endDt.Month, DbType.Int32);
+        p.Add("endyr", endDt.Year, DbType.Int32);
+    }
+    else
+    {
+        p.Add("endper", 12, DbType.Int32);
+        p.Add("endyr", 2099, DbType.Int32);
+    }
+}
+    
+    
     }
 }

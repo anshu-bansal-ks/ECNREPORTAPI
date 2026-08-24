@@ -578,6 +578,7 @@ namespace ECNREPORTAPI.Services
                 .OrderBy(x => x.Label)
                 .ToList();
         }
+
         public async Task<List<SalsifyScatDto>> GetSalsifyScatAsync(string? mcat)
         {
             var result = new List<SalsifyScatDto>();
@@ -663,6 +664,7 @@ namespace ECNREPORTAPI.Services
 
             return result;
         }
+         
         public List<DropdownItemDto> ToDropdownFromItemCategories(IEnumerable<LnkItemCategoriesDto> list)
         {
             return list
@@ -714,7 +716,6 @@ namespace ECNREPORTAPI.Services
 
             return result;
         }
-
         public List<DropdownItemDto> ToDropdownFromPricePages(IEnumerable<PricePageListDto> list)
         {
             return list
@@ -726,7 +727,6 @@ namespace ECNREPORTAPI.Services
                 .OrderBy(x => x.Label)
                 .ToList();
         }
-
         public async Task<List<TermsListDto>> GetTermsListAsync(string compId)
         {
             var result = new List<TermsListDto>();
@@ -866,8 +866,7 @@ namespace ECNREPORTAPI.Services
                 })
                 .OrderBy(x => x.Label)
                 .ToList();
-        }
-        
+        }  
         public async Task<List<PurchaseClassDto>> GetPurchaseClassAsync(string compId)
         {
             var result = new List<PurchaseClassDto>();
@@ -913,8 +912,7 @@ namespace ECNREPORTAPI.Services
                 .OrderBy(x => x.Label)
                 .ToList();
         }
-
-          public async Task<List<ProductGroupDto>> GetProductGroupAsync(string compId)
+        public async Task<List<ProductGroupDto>> GetProductGroupAsync(string compId)
         {
             var result = new List<ProductGroupDto>();
 
@@ -958,8 +956,173 @@ namespace ECNREPORTAPI.Services
                 .OrderBy(x => x.Label)
                 .ToList();
         }
-  
-  
+        public async Task<List<RolesDto>> GetRolesAsync(string compId)
+        {
+            var result = new List<RolesDto>();
 
+            string connStr = GetConnStringByCompId(compId);
+
+            if (string.IsNullOrWhiteSpace(connStr))
+                return result;
+
+            await using var con = new SqlConnection(connStr);
+            await con.OpenAsync();
+
+            const string sql = @"Select role_uid,role from Roles";
+
+            await using var cmd = new SqlCommand(sql, con);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                result.Add(new RolesDto
+                {
+                    role_uid = reader["role_uid"]?.ToString() ?? "",
+                    role = reader["role"]?.ToString() ?? ""
+                });
+            }
+
+            return result;
+        }
+        public List<DropdownItemDto> ToDropdownFromRoles(IEnumerable<RolesDto> list)
+        {
+            return list
+                .Select(x => new DropdownItemDto
+                {
+                    Value = x.role_uid,
+                    Label = x.role
+                })
+                .OrderBy(x => x.Label)
+                .ToList();
+        }
+
+        public async Task<List<BuyerDto>> GetBuyerAsync(string compId)
+        {
+            var result = new List<BuyerDto>();
+
+            string connStr = GetConnStringByCompId(compId);
+
+            if (string.IsNullOrWhiteSpace(connStr))
+                return result;
+
+            await using var con = new SqlConnection(connStr);
+            await con.OpenAsync();
+
+            const string sql = @"select distinct created_by as buyer, right(created_by
+                                , len(created_by) - 5) 
+                                from p21_view_po_hdr
+                                order by right(created_by, len(created_by)-5)";
+
+            await using var cmd = new SqlCommand(sql, con);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                result.Add(new BuyerDto
+                {
+
+                    buyer = reader["buyer"]?.ToString() ?? ""
+                });
+            }
+
+            return result;
+        }
+        public List<DropdownItemDto> ToDropdownFromBuyer(IEnumerable<BuyerDto> list)
+        {
+            return list
+                .Select(x => new DropdownItemDto
+                {
+                    Value = x.buyer,
+                    Label = x.buyer
+                })
+                .OrderBy(x => x.Label)
+                .ToList();
+        }
+
+        public async Task<List<PriceLibraryDto>> GetPriceLibraryAsync(string compId)
+        {
+            var result = new List<PriceLibraryDto>();
+
+            string connStr = GetConnStringByCompId(compId);
+
+            if (string.IsNullOrWhiteSpace(connStr))
+                return result;
+
+            await using var con = new SqlConnection(connStr);
+            await con.OpenAsync();
+
+            const string sql = @"select distinct  price_library_id, description 
+                                from price_library 
+                                order by description asc";
+
+            await using var cmd = new SqlCommand(sql, con);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                result.Add(new PriceLibraryDto
+                {
+                    price_library_id = reader["price_library_id"]?.ToString() ?? "",
+                    description = reader["description"]?.ToString() ?? ""
+                });
+            }
+
+            return result;
+        }
+        public List<DropdownItemDto> ToDropdownFromPriceLibrary(IEnumerable<PriceLibraryDto> list)
+        {
+            return list
+                .Select(x => new DropdownItemDto
+                {
+                    Value = x.price_library_id,
+                    Label = x.description
+                })
+                .OrderBy(x => x.Label)
+                .ToList();
+        }
+        public async Task<List<RolesReportsDto>> GetRolesReportsAsync()
+        {
+            var result = new List<RolesReportsDto>();
+
+            await using var con = new SqlConnection(_common.ConStr_Dashboard);
+            await con.OpenAsync();
+
+            string sql = $@"Select RoleId,role_name 
+                        from {dashboard}.dbo.Roles 
+                        ORDER BY role_name ASC";
+
+            await using var cmd = new SqlCommand(sql, con);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                result.Add(new RolesReportsDto
+                {
+                    RoleId = reader["RoleId"]?.ToString() ?? "",
+                    role_name = reader["role_name"]?.ToString() ?? ""
+                });
+            }
+
+            return result;
+        }
+
+        public List<DropdownItemDto> ToDropdownFromRolesReports(IEnumerable<RolesReportsDto> list)
+        {
+            return list
+                .Select(x => new DropdownItemDto
+                {
+                    Value = x.RoleId,
+                    Label = x.role_name
+                })
+                .OrderBy(x => x.Label)
+                .ToList();
+        }
+
+        
+  
     }
 }

@@ -8,7 +8,7 @@ using ECNREPORTAPI.Models;
 namespace ECNREPORTAPI.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     public class DropdownController : ControllerBase
     {
         private readonly DropdownService _svc;
@@ -421,6 +421,62 @@ namespace ECNREPORTAPI.Controllers
             var data = await _svc.GetProductGroupAsync(compId);
 
             var dropdown = _svc.ToDropdownFromProductGroup(data);
+
+            return Ok(dropdown);
+        }
+
+        [HttpGet("roles")]
+        [AllowAnonymous]
+        public async Task<IActionResult> Roles([FromQuery] string compId)
+        {
+            if (string.IsNullOrWhiteSpace(compId))
+                return BadRequest("compId required");
+
+            var data = await _svc.GetRolesAsync(compId);
+
+            var dropdown = _svc.ToDropdownFromRoles(data);
+
+            return Ok(dropdown);
+        }
+
+        [HttpGet("buyer")]
+        [AllowAnonymous]
+        public async Task<IActionResult> Buyer([FromQuery] string compId)
+        {
+            if (string.IsNullOrWhiteSpace(compId))
+                return BadRequest("compId required");
+
+            var data = await _svc.GetBuyerAsync(compId);
+
+            var dropdown = _svc.ToDropdownFromBuyer(data);
+
+            return Ok(dropdown);
+        }
+
+        [HttpGet("pricelibrary")]
+        [AllowAnonymous]
+        public async Task<IActionResult> PriceLibrary([FromQuery] string compId)
+        {
+            if (string.IsNullOrWhiteSpace(compId))
+                return BadRequest("compId required");
+
+            var data = await _svc.GetPriceLibraryAsync(compId);
+
+            var dropdown = _svc.ToDropdownFromPriceLibrary(data);
+
+            return Ok(dropdown);
+        }
+
+        [HttpGet("rolesrepots")]
+        [AllowAnonymous]
+        public async Task<IActionResult> RolesReports()
+        {
+            // if (string.IsNullOrWhiteSpace))
+            //     return BadRequest("compId required");
+
+            var data = await _svc.GetRolesReportsAsync();
+
+            var dropdown = _svc.ToDropdownFromRolesReports(data);
 
             return Ok(dropdown);
         }

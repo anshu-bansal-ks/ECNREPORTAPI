@@ -8,7 +8,7 @@ using System.Text;
 using ECNREPORTAPI.Models;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("[controller]")]
 public class AuthController : ControllerBase
 {
     private readonly DashboardContext _context;

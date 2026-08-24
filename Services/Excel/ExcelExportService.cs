@@ -26,7 +26,9 @@ namespace ECNREPORTAPI.Services.Excel
             string reportName = "Report",
             string[]? totalColumns = null,
             string? labelColumn = null,
-            string[]? columnsToExclude = null)
+            string[]? columnsToExclude = null,
+            Dictionary<string, string>? columnHeaderOverrides = null)
+            
         {
             ExcelPackage.License.SetNonCommercialPersonal("ECN Report");
 
@@ -54,7 +56,11 @@ namespace ECNREPORTAPI.Services.Excel
                     if (columnsToExclude != null && columnsToExclude.Contains(kvp.Key))
                     continue;
                     var val = kvp.Value;
-                    var prettyKey = ToTitleCase(kvp.Key);
+                    //var prettyKey = ToTitleCase(kvp.Key);
+                    var prettyKey = columnHeaderOverrides != null &&
+                columnHeaderOverrides.TryGetValue(kvp.Key, out var customHeader)
+                    ? customHeader
+                    : ToTitleCase(kvp.Key);
                     var cleanKey = CleanHeader(kvp.Key);
 
                     if (val is string str)

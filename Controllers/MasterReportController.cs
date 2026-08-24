@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 namespace ECNREPORTAPI.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     [Authorize]
     public class MasterReportController : ControllerBase
     {
@@ -59,9 +59,32 @@ namespace ECNREPORTAPI.Controllers
             return BadRequest("No records found to export.");
 
         string[]? excludeColumns = null;
-        if (reportName.ToLower() == "customerpayments")
+
+        if (reportName.Equals("customerpayments", StringComparison.OrdinalIgnoreCase))
         {
             excludeColumns = new[] { "payment_number" };
+        }
+
+        Dictionary<string, string>? columnHeaderOverrides = null;
+
+        string ytdComparison = filters.GetValueOrDefault(
+            "ytdcomparison",
+            "YTD v LYTD"
+        );
+
+        if (ytdComparison.Equals("YTD v LY", StringComparison.OrdinalIgnoreCase))
+        {
+            columnHeaderOverrides = new Dictionary<string, string>
+            {
+                ["SALES_LY"] = "SALES_LY"
+            };
+        }
+        else
+        {
+            columnHeaderOverrides = new Dictionary<string, string>
+            {
+                ["SALES_LY"] = "SALES_LYTD"
+            };
         }
 
     
@@ -72,7 +95,8 @@ namespace ECNREPORTAPI.Controllers
                 reportName, 
                 req.TotalColumns, 
                 req.LabelColumn,
-                excludeColumns
+                excludeColumns,
+                columnHeaderOverrides
             );
             return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"{reportName}.xlsx");
         }
