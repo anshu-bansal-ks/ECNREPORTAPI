@@ -18,7 +18,6 @@ namespace ECNREPORTAPI.Controllers
             _service = service;
         }
 
-        // ✅ SINGLE API 
          [HttpGet("data")]
         public async Task<IActionResult> ItemDetailsData(
             [FromQuery] string compId,

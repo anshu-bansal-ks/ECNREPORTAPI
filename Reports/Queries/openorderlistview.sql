@@ -24,5 +24,3 @@ AND (oe_hdr.projected_order = 'N')
 AND (oe_hdr.cancel_flag = 'N')
 ORDER BY oe_hdr.ship2_name
 , oe_hdr.order_date
-OFFSET @Offset ROWS
-FETCH NEXT @PageSize ROWS ONLY;

@@ -31,7 +31,7 @@ namespace ECNREPORTAPI.Services
 
                 using var con = new SqlConnection(conStr);
                 string rName = reportName.ToLower();           
-                NormalizeFilters(filters);
+                NormalizeFilters(filters,rName);
             
             if (rName == "customerinfo")
                 {
@@ -86,7 +86,443 @@ namespace ECNREPORTAPI.Services
 
                     var excelData = ProcessVendorSalesExcel(result.Data, result.Months);
                     return new { Data = result.Data, ExcelData = excelData, Months = result.Months };
-                }    
+                }   
+                
+                else if (rName == "fiveyearsalesbycustomer")
+                {
+                    string repId = filters.GetValueOrDefault("salesrep", "ALL");
+                    if (string.IsNullOrEmpty(repId) || repId.Equals("ALL", StringComparison.OrdinalIgnoreCase))
+                    {
+                        repId = filters.GetValueOrDefault("rep_id", "ALL");
+                    }
+                    var service = new FiveYearSalesByCustomer(_config);
+                    var result = await service.GetDataAsync(compId, repId);
+
+                    int currYear = result.curryear;
+                    var yearTotals = new Dictionary<int, decimal>();
+                    for (int i = 5; i >= 0; i--)
+                    {
+                        yearTotals[currYear - i] = 0;
+                    }
+
+                    var excelData = result.c1.Select(item => {
+                        var row = new Dictionary<string, object>
+                        {
+                            { "Customer ID", item.customer_id },
+                            { "Customer Name", item.customer_name },
+                            { "Rep", item.rep },
+                            { "Terms Desc", item.terms_desc },
+                            { "Last Sales Date", item.last_sales_date }
+                        };
+
+                        for (int i = 5; i >= 0; i--)
+                        {
+                            int computedYear = currYear - i;
+                            var prop = typeof(Customerfive).GetProperty($"year{i}");
+                            string val = prop?.GetValue(item)?.ToString() ?? "0";
+                            
+                            if (decimal.TryParse(val, out decimal d))
+                            {
+                                decimal roundedVal = Math.Round(d, 2);
+                                row[computedYear.ToString()] = roundedVal;
+                                yearTotals[computedYear] += roundedVal;
+                            }
+                            else
+                            {
+                                row[computedYear.ToString()] = 0m;
+                            }
+                        }
+
+                        return (IDictionary<string, object>)row;
+                    }).Cast<object>().ToList();
+
+                    if (result.c1.Count > 0)
+                    {
+                        var totalRow = new Dictionary<string, object>
+                        {
+                            { "Customer Id", "" },
+                            { "Customer Name", "" },
+                            { "Rep", "" },
+                            { "Terms Desc", "Total" },
+                            { "Last Sales Date", "" }
+                        };
+
+                        for (int i = 5; i >= 0; i--)
+                        {
+                            int computedYear = currYear - i;
+                            totalRow[computedYear.ToString()] = Math.Round(yearTotals[computedYear], 2);
+                        }
+
+                        excelData.Add(totalRow);
+                    }
+
+                    return new { 
+                        Data = result.c1, 
+                        ExcelData = excelData, 
+                        Curryear = result.curryear, 
+                        Totals = new Dictionary<string, decimal>() 
+                    };
+                }
+                else if (rName == "fiveyearsalesforgroupcode")
+                {
+                    string groupCode = filters.GetValueOrDefault("group_code", "");
+
+                    var service = new FiveYearSalesForGroupCode(_config);
+                    var result = await service.GetDataAsync(compId, groupCode);
+
+                    int currYear = result.curryear;
+                    var yearTotals = new Dictionary<int, decimal>();
+                    for (int i = 5; i >= 0; i--)
+                    {
+                        yearTotals[currYear - i] = 0;
+                    }
+                    var excelData = result.c1.Select(item => {
+                        var row = new Dictionary<string, object>
+                        {
+                            { "Customer Id", item.customer_id },
+                            { "Customer Name", item.customer_name },
+                            { "Rep", item.rep },
+                            { "Terms Desc", item.terms_desc },
+                            { "Last Sales Date", item.last_sales_date }
+                        };
+
+                        for (int i = 5; i >= 0; i--)
+                        {
+                            int computedYear = currYear - i;
+                            var prop = typeof(Salesgroupcodefive).GetProperty($"year{i}");
+                            string val = prop?.GetValue(item)?.ToString() ?? "0";
+
+                            if (decimal.TryParse(val, out decimal d))
+                            {
+                                decimal roundedVal = Math.Round(d, 2);
+                                row[computedYear.ToString()] = roundedVal;
+                                yearTotals[computedYear] += roundedVal;
+                            }
+                            else
+                            {
+                                row[computedYear.ToString()] = 0m;
+                            }
+                        }
+
+                        return (IDictionary<string, object>)row;
+                    }).Cast<object>().ToList();
+
+                    if (result.c1.Count > 0)
+                    {
+                        var totalRow = new Dictionary<string, object>
+                        {
+                            { "Customer Id", "" },
+                            { "Customer Name", "" },
+                            { "Rep", "" },
+                            { "Terms Desc", "Total" },
+                            { "Last Sales Date", "" }
+                        };
+
+                        for (int i = 5; i >= 0; i--)
+                        {
+                            int computedYear = currYear - i;
+                            totalRow[computedYear.ToString()] = Math.Round(yearTotals[computedYear], 2);
+                        }
+
+                        excelData.Add(totalRow);
+                    }
+
+                    return new {
+                        Data = result.c1,
+                        ExcelData = excelData,
+                        Curryear = result.curryear,
+                        Totals = new Dictionary<string, decimal>()
+                    };
+                }
+                else if (rName == "fiveyearsalesreportincludeprofit")
+                {
+                    string repId = filters.GetValueOrDefault("salesrep", "ALL");
+                    if (string.IsNullOrEmpty(repId) || repId.Equals("ALL", StringComparison.OrdinalIgnoreCase))
+                    {
+                        repId = filters.GetValueOrDefault("rep_id", "ALL");
+                    }
+
+                    var service = new FiveYearSalesIncludeProfit(_config);
+                    var result = await service.GetDataAsync(compId, repId);
+
+                    int currYear = result.curryear;
+                    var salesTotals = new Dictionary<int, decimal>();
+                    var profitTotals = new Dictionary<int, decimal>();
+                    for (int i = 5; i >= 0; i--)
+                    {
+                        salesTotals[currYear - i] = 0m;
+                        profitTotals[currYear - i] = 0m;
+                    }
+
+                    var excelData = result.c1.Select(item => {
+                        var row = new Dictionary<string, object>
+                        {
+                            { "Customer Id", item.customer_id },
+                            { "Customer Name", item.customer_name },
+                            { "Rep", item.rep },
+                            { "Terms Desc", item.terms_desc },
+                            { "Last Sale Date", item.last_sales_date }
+                        };
+
+                        for (int i = 5; i >= 0; i--)
+                        {
+                            int computedYear = currYear - i;
+
+                            var salesProp = typeof(IncludeProfitfive).GetProperty($"year{i}");
+                            string salesVal = salesProp?.GetValue(item)?.ToString() ?? "0";
+                            decimal salesRounded = decimal.TryParse(salesVal, out decimal s) ? Math.Round(s, 2) : 0m;
+                            row[$"{computedYear} Sales"] = salesRounded;
+                            salesTotals[computedYear] += salesRounded;
+
+                            var gpProp = typeof(IncludeProfitfive).GetProperty($"year{i}_GP_PCT");
+                            string gpVal = gpProp?.GetValue(item)?.ToString() ?? "0";
+                            decimal gpRounded = decimal.TryParse(gpVal, out decimal g) ? Math.Round(g, 2) : 0m;
+                            row[$"{computedYear} Profit"] = gpRounded;
+                            profitTotals[computedYear] += gpRounded; 
+                        }
+
+                        return (IDictionary<string, object>)row;
+                    }).Cast<object>().ToList();
+
+                    var reportTotals = new Dictionary<string, decimal>();
+                    for (int i = 5; i >= 0; i--)
+                    {
+                        int computedYear = currYear - i;
+                        reportTotals[$"{computedYear} Sales"] = salesTotals[computedYear];
+                        reportTotals[$"{computedYear} Profit"] = 0m; 
+                    }
+
+                    if (result.c1.Count > 0)
+                    {
+                        var totalRow = new Dictionary<string, object>
+                        {
+                            { "Customer Id", "" },
+                            { "Customer Name", "" },
+                            { "Rep", "" },
+                            { "Terms Desc", "Total" },
+                            { "Last Sale Date", "" }
+                        };
+
+                        for (int i = 5; i >= 0; i--)
+                        {
+                            int computedYear = currYear - i;
+                            totalRow[$"{computedYear} Sales"] = Math.Round(salesTotals[computedYear], 2);
+                            totalRow[$"{computedYear} Profit %"] = "";
+                        }
+
+                        excelData.Add(totalRow);
+                    }
+
+                    return new {
+                        Data = result.c1,
+                        ExcelData = excelData,
+                        Curryear = result.curryear,
+                        Totals = reportTotals
+                    };
+                }
+                else if (rName == "fiveyearsalesreportytd")
+                {
+                    string repId = filters.GetValueOrDefault("salesrep", "ALL");
+                    if (string.IsNullOrEmpty(repId) || repId.Equals("ALL", StringComparison.OrdinalIgnoreCase))
+                    {
+                        repId = filters.GetValueOrDefault("rep_id", "ALL");
+                    }
+
+                    var service = new FiveYearSalesByCustomerYtd(_config);
+                    var result = await service.GetDataAsync(compId, repId);
+
+                    int currYear = result.curryear;
+                    var yearTotals = new Dictionary<int, decimal>();
+                    for (int i = 5; i >= 0; i--)
+                    {
+                        yearTotals[currYear - i] = 0m;
+                    }
+
+                    var excelData = result.c1.Select(item => {
+                        var row = new Dictionary<string, object>
+                        {
+                            { "Customer ID", item.customer_id },
+                            { "Customer Name", item.customer_name },
+                            { "Rep", item.rep },
+                            { "Terms Desc", item.terms_desc },
+                            { "Last Sales Date", item.last_sales_date }
+                        };
+
+                        for (int i = 5; i >= 0; i--)
+                        {
+                            int computedYear = currYear - i;
+                            var prop = typeof(Salesytdfive).GetProperty($"year{i}");
+                            string val = prop?.GetValue(item)?.ToString() ?? "0";
+                            
+                            if (decimal.TryParse(val, out decimal d))
+                            {
+                                decimal roundedVal = Math.Round(d, 2);
+                                row[computedYear.ToString()] = roundedVal;
+                                yearTotals[computedYear] += roundedVal;
+                            }
+                            else
+                            {
+                                row[computedYear.ToString()] = 0m;
+                            }
+                        }
+
+                        return (IDictionary<string, object>)row;
+                    }).Cast<object>().ToList();
+
+                    if (result.c1.Count > 0)
+                    {
+                        var totalRow = new Dictionary<string, object>
+                        {
+                            { "Customer ID", "" },
+                            { "Customer Name", "" },
+                            { "Rep", "" },
+                            { "Terms Desc", "Total" },
+                            { "Last Sales Date", "" }
+                        };
+
+                        for (int i = 5; i >= 0; i--)
+                        {
+                            int computedYear = currYear - i;
+                            totalRow[computedYear.ToString()] = Math.Round(yearTotals[computedYear], 2);
+                        }
+
+                        excelData.Add(totalRow);
+                    }
+
+                    return new { 
+                        Data = result.c1, 
+                        ExcelData = excelData, 
+                        Curryear = result.curryear, 
+                        Totals = new Dictionary<string, decimal>() 
+                    };
+                }
+                else if (rName == "fiveyearsalesytdincludingprofit")
+                {
+                    string repId = filters.GetValueOrDefault("salesrep", "ALL");
+                    if (string.IsNullOrEmpty(repId) || repId.Equals("ALL", StringComparison.OrdinalIgnoreCase))
+                    {
+                        repId = filters.GetValueOrDefault("rep_id", "ALL");
+                    }
+
+                    var service = new FiveYearSalesYtdIncludingProfit(_config);
+                    var result = await service.GetDataAsync(compId, repId);
+
+                    int currYear = result.curryear;
+                    var salesTotals = new Dictionary<int, decimal>();
+                    for (int i = 5; i >= 0; i--)
+                    {
+                        salesTotals[currYear - i] = 0m;
+                    }
+
+                    var excelData = result.c1.Select(item => {
+                        var row = new Dictionary<string, object>
+                        {
+                            { "Customer Id", item.customer_id },
+                            { "Customer Name", item.customer_name },
+                            { "Rep", item.rep },
+                            { "Terms Desc", item.terms_desc },
+                            { "Last Sales Date", item.last_sales_date }
+                        };
+
+                        for (int i = 5; i >= 0; i--)
+                        {
+                            int computedYear = currYear - i;
+
+                            // Sales Amount ($)
+                            var salesProp = typeof(Salesytdfiveprofit).GetProperty($"year{i}");
+                            string salesVal = salesProp?.GetValue(item)?.ToString() ?? "0";
+                            decimal salesRounded = decimal.TryParse(salesVal, out decimal s) ? Math.Round(s, 2) : 0m;
+                            row[$"{computedYear} Sales"] = salesRounded;
+                            salesTotals[computedYear] += salesRounded;
+
+                            // Profit %
+                            var gpProp = typeof(Salesytdfiveprofit).GetProperty($"year{i}_GP_PCT");
+                            string gpVal = gpProp?.GetValue(item)?.ToString() ?? "0";
+                            decimal gpRounded = decimal.TryParse(gpVal, out decimal g) ? Math.Round(g, 2) : 0m;
+                            row[$"{computedYear} Profit %"] = gpRounded;
+                        }
+
+                        return (IDictionary<string, object>)row;
+                    }).Cast<object>().ToList();
+
+                    var reportTotals = new Dictionary<string, decimal>();
+                    for (int i = 5; i >= 0; i--)
+                    {
+                        int computedYear = currYear - i;
+                        reportTotals[$"{computedYear} Sales"] = salesTotals[computedYear];
+                        reportTotals[$"{computedYear} Profit %"] = 0m;
+                    }
+
+                    if (result.c1.Count > 0)
+                    {
+                        var totalRow = new Dictionary<string, object>
+                        {
+                            { "Customer Id", "" },
+                            { "Customer Name", "" },
+                            { "Rep", "" },
+                            { "Terms Desc", "Total" },
+                            { "Last Sales Date", "" }
+                        };
+
+                        for (int i = 5; i >= 0; i--)
+                        {
+                            int computedYear = currYear - i;
+                            totalRow[$"{computedYear} Sales"] = Math.Round(salesTotals[computedYear], 2);
+                            totalRow[$"{computedYear} Profit %"] = "";
+                        }
+
+                        excelData.Add(totalRow);
+                    }
+
+                    return new {
+                        Data = result.c1,
+                        ExcelData = excelData,
+                        Curryear = result.curryear,
+                        Totals = reportTotals
+                    };
+                }
+                else if (rName == "forecastreportforxgen")
+                {
+                    string locationId = filters.GetValueOrDefault("location", "ALL");
+                    string supplierId = filters.GetValueOrDefault("supplier", "ALL");
+                    string prefix = filters.GetValueOrDefault("prefix", "");
+
+                    var service = new ForecastReportForXGenService(_config);
+                    var data = await service.GetDataAsync(compId, locationId, supplierId, prefix);
+
+                    return new { 
+                        Data = data, 
+                        ExcelData = data, 
+                        Totals = new Dictionary<string, decimal>() 
+                    };
+                }
+                else if (rName == "salesbybrandforvendor")
+                {
+                    string supplierId = filters.GetValueOrDefault("supplierId", "");
+                    string fromDate = filters.GetValueOrDefault("fromdate", "");
+                    string tillDate = filters.GetValueOrDefault("tilldate", "");
+                    string tPeriod = filters.GetValueOrDefault("timeperiod", "");
+
+                    var service = new SalesByBrandForVendorService(_config);
+                    var data = await service.GetDataAsync(compId, supplierId, fromDate, tillDate, tPeriod);
+
+                    var excelData = data.Select(item => (IDictionary<string, object>)new Dictionary<string, object>
+                        {
+                            { "supplier_id", item.supplier_id },
+                            { "supplier_name", item.supplier_name },
+                            { "str_brandName", item.str_brandName },
+                            { "units", item.UNITS },
+                            { "sales", item.SALES },
+                            { "cost", item.COST },
+                            { "gross_profit", item.gross_profit },
+                            { "profit_percent", item.profit_percent }
+                        }).Cast<object>().ToList();
+                    return new { 
+                        Data = data, 
+                        ExcelData = excelData, 
+                        Totals = new Dictionary<string, decimal>() 
+                    };
+                }
                 else if (rName == "topcustomersytdvlytdwithmargin")
                 {
                     string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Reports", "Queries", "topcustomersytdvlytdwithmargin.sql");
@@ -98,7 +534,7 @@ namespace ECNREPORTAPI.Services
 
                     var p = new DynamicParameters();
                     p.Add("repId", filters.GetValueOrDefault("repId", "ALL"));
-
+          
                     var rawData = (await con.QueryAsync<dynamic>(sql, p, commandTimeout: 300)).ToList();
                     return new { Data = rawData, ExcelData = rawData };
                 }      
@@ -143,6 +579,7 @@ namespace ECNREPORTAPI.Services
                 string sql = await File.ReadAllTextAsync(filePath);
                 sql = sql.Replace("{dashboard}", _dashboard);
                 sql = ApplyTopN(sql, filters);
+                var p = PrepareParameters(filters, compId);
 
                 if (sql.Contains("{subSql}"))
                 {
@@ -157,12 +594,29 @@ namespace ECNREPORTAPI.Services
                 }
                 if (sql.Contains("{subQuery}"))
                 {
-                    string subQuery = compId.Equals("XG", StringComparison.OrdinalIgnoreCase)
-                        ? ",CAST(vq.PA_Qty AS INT) AS PA"
-                        : @",
-                         CAST(vq.NJ_QTY AS INT) AS NJ
-                        ,CAST(vq.FL_Qty AS INT) AS FL
-                        ,CAST(vq.CA_Qty AS INT) AS CA";
+                string subQuery;
+
+                    if (rName == "inventorylocationsupplier")
+                    {
+                        if (compId.Equals("ECN", StringComparison.OrdinalIgnoreCase))
+                        {
+                            subQuery = ", ud.release_date AS special_field";
+                        }
+                        else
+                        {
+                            subQuery = ", invsup.msds AS special_field";
+                            
+                        }
+                    }
+                    else
+                    {
+                        subQuery = compId.Equals("XG", StringComparison.OrdinalIgnoreCase)
+                            ? ", CAST(vq.PA_Qty AS INT) AS PA"
+                            : @",
+                                CAST(vq.NJ_QTY AS INT) AS NJ,
+                                CAST(vq.FL_Qty AS INT) AS FL,
+                                CAST(vq.CA_Qty AS INT) AS CA";
+                    }
 
                     sql = sql.Replace("{subQuery}", subQuery);
                 }
@@ -191,6 +645,38 @@ namespace ECNREPORTAPI.Services
                         ,CAST(V_QTY.CA_Qty AS INT) AS CA";
 
                     sql = sql.Replace("{QtySubQuery}", QtySubQuery);
+                }
+                if (sql.Contains("{QtytesSubQuery}"))
+                {
+                    string subQuery;
+                    string locationName;
+
+                    if (compId.Equals("XG", StringComparison.OrdinalIgnoreCase))
+                    {
+                        subQuery = @"
+                            ,CAST(q.PA_Qty AS INT) AS PA";
+
+                        locationName = "PA";
+                    }
+                    else
+                    {
+                        subQuery = @"
+                            ,CAST(q.NJ_Qty AS INT) AS NJ
+                            ,CAST(q.FL_Qty AS INT) AS FL
+                            ,CAST(q.CA_Qty AS INT) AS CA";
+
+                        locationName = "NJ";
+                    }
+
+                    sql = sql.Replace("{QtytesSubQuery}", subQuery);
+
+                    string loctionid = await _dropdownService.GetLocationIdAsync(
+                        compId,
+                        "WAREHOUSE",
+                        locationName
+                    );
+
+                    p.Add("loctionid", loctionid, DbType.String);   
                 }
 
                 if (sql.Contains("{Qtystats}"))
@@ -290,8 +776,6 @@ namespace ECNREPORTAPI.Services
                         filters.GetValueOrDefault("classnumber")
                     );
                 }
-
-                var p = PrepareParameters(filters, compId); 
 
                 if (sql.Contains("{locationColumns}"))
                 {
@@ -605,8 +1089,7 @@ namespace ECNREPORTAPI.Services
             return formattedList;
         }
 
-
-        private void NormalizeFilters(Dictionary<string, string> f)
+        private void NormalizeFilters(Dictionary<string, string> f, string rName)
         {
             
             if (f.ContainsKey("binzero")) {
@@ -624,13 +1107,25 @@ namespace ECNREPORTAPI.Services
             } else {
                 f["discontinued"] = "false";
             }
-            if (f.ContainsKey("status"))
+           var textStatusReports = new[] { "openorders", "openquotereport", "openordersbysupplier", "openorderlistview", "returnsbybuyer", "openordersforitem" };
+
+            if (textStatusReports.Contains(rName))
             {
-                f["status"] = f["status"]?.ToLower() == "true" ? "true" : "false";
+                if (!f.ContainsKey("status") || string.IsNullOrWhiteSpace(f["status"]))
+                {
+                    f["status"] = "ALL";
+                }
             }
             else
             {
-                f["status"] = "false";
+                if (f.ContainsKey("status"))
+                {
+                    f["status"] = f["status"]?.ToLower() == "true" ? "true" : "false";
+                }
+                else
+                {
+                    f["status"] = "false";
+                }
             }
         }
 
@@ -786,8 +1281,27 @@ namespace ECNREPORTAPI.Services
             {
                 p.Add("rolesreports", "", DbType.String);
             }
+            
+            string repIdVal = f.GetValueOrDefault("repId") ?? f.GetValueOrDefault("salesrep") ?? "ALL";
+            p.Add("repId", repIdVal, DbType.String);
+            string statusVal = f.GetValueOrDefault("status", "ALL").ToUpper();
+            p.Add("status", statusVal, DbType.String);
+            string releaseDateVal = f.GetValueOrDefault("releasedate", "");
 
-          string startRelease = f.GetValueOrDefault("startrelease", "");
+            if (DateTime.TryParseExact(
+                releaseDateVal,
+                new[] { "yyyy-MM-dd", "MM/dd/yyyy", "dd/MM/yyyy" },
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out DateTime parsedReleaseDate))
+            {
+                p.Add("releasedate", parsedReleaseDate, DbType.DateTime);
+            }
+            else
+            {
+                p.Add("releasedate", DBNull.Value, DbType.DateTime);
+            }
+            string startRelease = f.GetValueOrDefault("startrelease", "");
 
             if (DateTime.TryParseExact(
                 startRelease,
@@ -865,18 +1379,21 @@ namespace ECNREPORTAPI.Services
                     DbType.Int32
                 );
             }
+            p.Add("custId", f.GetValueOrDefault("custId", ""), DbType.String);
+            p.Add("prclibId", f.GetValueOrDefault("prclibId", ""), DbType.String);
             foreach (var item in f)
             {
                 string key = item.Key;
                 string keyLower = key.ToLower();
                 if (keyLower == "fromdate" || keyLower == "tilldate" || keyLower == "timeperiod" || 
                     keyLower == "pagenumber" || keyLower == "pagesize" || keyLower == "isexport" || 
-                    keyLower == "daysold" ||  keyLower == "minqty" || keyLower == "locationId" ||
+                    keyLower == "daysold" ||  keyLower == "minqty" || keyLower == "locationid" | keyLower == "locationId" ||
                     keyLower == "locationlist" ||keyLower == "minqty" || keyLower == "mcat" || keyLower == "allpo" ||
                     keyLower == "pono"  || keyLower == "supplierid" || keyLower == "productgroup" ||  keyLower == "ranktype"
                     || keyLower == "Alljobname" || keyLower == "job_name" || keyLower == "startrelease" || keyLower == "endrelease" ||
                     keyLower == "maxrecieved" || keyLower == "roles" || keyLower == "buyer" || keyLower == "rolesreports" || 
-                    keyLower == "ytdcomparison")
+                    keyLower == "ytdcomparison" || keyLower == "repid" || keyLower == "salesrep" || keyLower == "releasedate" || keyLower == "prclibid"
+                    || keyLower == "custid" || keyLower == "prclibid")
                     continue;
 
                 p.Add(key, item.Value);
@@ -894,53 +1411,53 @@ namespace ECNREPORTAPI.Services
                 p.Add("PageSize", pageSize);
             }
             if (!p.ParameterNames.Any(x => x.Equals("compId", StringComparison.OrdinalIgnoreCase))) 
-                p.Add("compId", compId);
+                p.Add("compId", compId, DbType.String);
 
             return p;
             
         }
     
-    private void AddMonthYearParameters(
-    DynamicParameters p,
-    Dictionary<string, string> filters)
-    {
-    string beginDate = filters.GetValueOrDefault("begindate", "");
+        private void AddMonthYearParameters(
+        DynamicParameters p,
+        Dictionary<string, string> filters)
+        {
+        string beginDate = filters.GetValueOrDefault("begindate", "");
 
-    if (DateTime.TryParseExact(
-        beginDate,
-        new[] { "MM/yyyy", "MM/yy", "yyyy-MM" },
-        CultureInfo.InvariantCulture,
-        DateTimeStyles.None,
-        out DateTime beginDt))
-    {
-        p.Add("begper", beginDt.Month, DbType.Int32);
-        p.Add("begyr", beginDt.Year, DbType.Int32);
-    }
-    else
-    {
-        p.Add("begper", 1, DbType.Int32);
-        p.Add("begyr", 1900, DbType.Int32);
-    }
+        if (DateTime.TryParseExact(
+            beginDate,
+            new[] { "MM/yyyy", "MM/yy", "yyyy-MM" },
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out DateTime beginDt))
+        {
+            p.Add("begper", beginDt.Month, DbType.Int32);
+            p.Add("begyr", beginDt.Year, DbType.Int32);
+        }
+        else
+        {
+            p.Add("begper", 1, DbType.Int32);
+            p.Add("begyr", 1900, DbType.Int32);
+        }
 
-    string endDate = filters.GetValueOrDefault("enddate", "");
+        string endDate = filters.GetValueOrDefault("enddate", "");
 
-    if (DateTime.TryParseExact(
-        endDate,
-        new[] { "MM/yyyy", "MM/yy", "yyyy-MM" },
-        CultureInfo.InvariantCulture,
-        DateTimeStyles.None,
-        out DateTime endDt))
-    {
-        p.Add("endper", endDt.Month, DbType.Int32);
-        p.Add("endyr", endDt.Year, DbType.Int32);
+        if (DateTime.TryParseExact(
+            endDate,
+            new[] { "MM/yyyy", "MM/yy", "yyyy-MM" },
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out DateTime endDt))
+        {
+            p.Add("endper", endDt.Month, DbType.Int32);
+            p.Add("endyr", endDt.Year, DbType.Int32);
+        }
+        else
+        {
+            p.Add("endper", 12, DbType.Int32);
+            p.Add("endyr", 2099, DbType.Int32);
+        }
     }
-    else
-    {
-        p.Add("endper", 12, DbType.Int32);
-        p.Add("endyr", 2099, DbType.Int32);
+        
+        
+        }
     }
-}
-    
-    
-    }
-}

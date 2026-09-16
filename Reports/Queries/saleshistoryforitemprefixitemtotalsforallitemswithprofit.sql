@@ -16,3 +16,5 @@ AND ihs.primary_salesrep = 'Y'
 GROUP BY il.item_id
 ,im.item_desc
 ORDER BY il.item_id
+OFFSET @Offset ROWS
+FETCH NEXT @PageSize ROWS ONLY;

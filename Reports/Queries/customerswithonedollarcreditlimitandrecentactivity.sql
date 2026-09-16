@@ -1,7 +1,7 @@
 select customer.customer_id
 , customer.customer_name
 , credit_status
-, terms_desc
+, terms_desc as credit_terms
 , LastSl as last_sale
 from customer(nolock) 
 JOIN da_cust_stats_static(nolock) on customer.customer_id = da_cust_stats_static.customer_id 

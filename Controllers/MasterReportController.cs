@@ -39,12 +39,8 @@ namespace ECNREPORTAPI.Controllers
 
             if (result == null) return BadRequest("No data found.");
             IEnumerable<dynamic>? dataToExport = null;
-
-            // ReportEngine se Data property nikalna
         var propData = result.GetType().GetProperty("Data");
         var propExcel = result.GetType().GetProperty("ExcelData");
-
-        // ExcelData ko priority do agar ReportEngine ne process karke bheja hai
         if (propExcel != null)
         {
             dataToExport = propExcel.GetValue(result) as IEnumerable<dynamic>;
@@ -96,7 +92,10 @@ namespace ECNREPORTAPI.Controllers
                 req.TotalColumns, 
                 req.LabelColumn,
                 excludeColumns,
-                columnHeaderOverrides
+                columnHeaderOverrides,
+                req.ColumnNames,
+                req.ColumnDataTypes,
+                req.ColumnLabels
             );
             return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"{reportName}.xlsx");
         }

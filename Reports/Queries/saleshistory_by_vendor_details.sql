@@ -1,6 +1,6 @@
 SELECT s.supplier_id
 ,s.supplier_name
-,CAST(SUM(qty_shipped) AS INT) as UNITS
+,CAST(SUM(qty_shipped) AS INT) as qty
 ,SUM(il.extended_price) as SALES   
 ,SUM(il.extended_price) - SUM(il.cogs_amount) as gross_profit
 ,CASE WHEN SUM(il.extended_price) = 0 THEN 0    

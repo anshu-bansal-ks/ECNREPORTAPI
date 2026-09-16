@@ -25,5 +25,3 @@ ORDER BY CASE WHEN @rankType = 'QTY'
 THEN ISNULL(tbl_productrank.slqty, 0)
 ELSE ISNULL(sales.sales_6month, 0) END DESC,
 tbl_productrank.item_id
-OFFSET @Offset ROWS
-FETCH NEXT @PageSize ROWS ONLY;

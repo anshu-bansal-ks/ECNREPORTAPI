@@ -18,7 +18,13 @@ namespace ECNREPORTAPI.Models
         public string ConStr_Dashboard => 
             _config.GetConnectionString("strCon_dashboard") 
             ?? throw new InvalidOperationException("Missing connection string: strCon_dashboard");
-
+    public string StrConkoretsky => 
+                _config.GetConnectionString("strConkoretsky") 
+                ?? throw new InvalidOperationException("Missing connection string: strCon_dashboard");
+public string ConEcnStr => 
+    _config.GetConnectionString("strecnconnectionString") 
+    ?? _config["strecnconnectionString"] 
+    ?? throw new InvalidOperationException("Missing connection string: strecnconnectionString");
         /// <summary>
         /// Returns company-specific connection string by replacing database prefix
         /// </summary>

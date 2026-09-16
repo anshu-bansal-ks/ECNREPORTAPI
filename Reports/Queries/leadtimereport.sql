@@ -20,12 +20,11 @@ AND inv_loc.company_id = vendor_supplier.company_id
 AND vendor_supplier.primary_vendor = 'Y'
 AND vendor_supplier.delete_flag <> 'Y'
 WHERE inventory_supplier.supplier_id = @supplierId
-AND inv_loc.company_id = @compId
 AND inventory_supplier_x_loc.location_id IN (
-      SELECT value 
+      SELECT CAST(value AS INT)
       FROM {dashboard}.dbo.fn_CommaSeparatedStringToTable(
           CASE 
-              WHEN @locationId = 'ALL' THEN @LocationList 
+              WHEN CAST(@locationId AS VARCHAR(50)) = 'ALL' THEN @LocationList
               ELSE @locationId 
           END, 
           ','

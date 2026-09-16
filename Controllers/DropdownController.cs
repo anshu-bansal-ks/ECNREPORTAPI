@@ -481,5 +481,23 @@ namespace ECNREPORTAPI.Controllers
             return Ok(dropdown);
         }
 
+        [HttpGet("suppliercustomerbrands")]
+        [AllowAnonymous]
+        public async Task<IActionResult> SupplierCustomerBrands(
+            [FromQuery] string compId,
+            [FromQuery] string supplierId)
+        {
+            if (string.IsNullOrWhiteSpace(compId))
+                return BadRequest("compId required");
+
+            if (string.IsNullOrWhiteSpace(supplierId))
+                return BadRequest("supplierId required");
+
+            var data = await _svc.GetSupplierCustomerBrandAsync(compId, supplierId);
+            var dropdown = _svc.ToDropdownFromBrands(data);
+
+            return Ok(dropdown);
+        }
+
     }
 }

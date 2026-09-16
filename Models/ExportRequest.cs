@@ -6,6 +6,7 @@ namespace ECNREPORTAPI.Models
         public string? ReportTitle { get; set; }
         public string CompId { get; set; } = "";
         public string[] ColumnNames { get; set; } = Array.Empty<string>();
+        public string[] ColumnLabels { get; set; } = Array.Empty<string>();
         public string[] ColumnDataTypes { get; set; } = Array.Empty<string>();
         public string[]? TotalColumns { get; set; }
         public string? LabelColumn { get; set; }

@@ -1122,7 +1122,118 @@ namespace ECNREPORTAPI.Services
                 .ToList();
         }
 
-        
-  
+        public async Task<List<BrandListDto>> GetCustomerBrandListAsync()
+        {
+            var result = new List<BrandListDto>();
+
+            await using var con = new SqlConnection(_common.StrConkoretsky);
+            await con.OpenAsync();
+
+            const string sql = @"
+                SELECT DISTINCT
+                    [str_brandName],
+                    UPPER([str_brandCode]) AS str_brandCode
+                FROM [ecn].[dbo].[refBrands]
+                WHERE bln_valid = 1
+                ORDER BY str_brandName";
+
+            await using var cmd = new SqlCommand(sql, con);
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                result.Add(new BrandListDto
+                {
+                    str_brandCode = reader["str_brandCode"]?.ToString() ?? "",
+                    str_brandName = reader["str_brandName"]?.ToString() ?? ""
+                });
+            }
+
+            return result;
+        }
+        public async Task<List<BrandListDto>> GetSupplierBrandListAsync(string compId, string supplierId)
+        {
+            var result = new List<BrandListDto>();
+
+            string connStr = GetConnStringByCompId(compId);
+            if (string.IsNullOrWhiteSpace(connStr))
+                return result;
+
+            await using var con = new SqlConnection(connStr);
+            await con.OpenAsync();
+
+            const string sql = @"
+                SELECT DISTINCT
+                    il.supplier_id,
+                    UPPER(im.parker_product_cd) AS parker_product_cd
+                FROM invoice_hdr (NOLOCK) ih
+                JOIN invoice_line (NOLOCK) il ON ih.invoice_no = il.invoice_no
+                JOIN inv_mast (NOLOCK) im ON im.inv_mast_uid = il.inv_mast_uid
+                JOIN supplier (NOLOCK) s ON s.supplier_id = il.supplier_id
+                WHERE il.supplier_id = @supplierid";
+
+            await using var cmd = new SqlCommand(sql, con);
+            cmd.Parameters.Add("@supplierid", SqlDbType.VarChar, 50).Value = supplierId ?? "";
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                result.Add(new BrandListDto
+                {
+                    str_brandCode = reader["parker_product_cd"]?.ToString() ?? "",
+                    str_brandName = ""
+                });
+            }
+
+            return result;
+        }
+        public async Task<List<BrandListDto>> GetSupplierCustomerBrandAsync(string compId, string supplierId)
+        {
+            var result = new List<BrandListDto>();
+
+            try
+            {
+                var supplierBrands = await GetSupplierBrandListAsync(compId, supplierId);
+                var customerBrands = await GetCustomerBrandListAsync();
+
+                var joined = from s in supplierBrands
+                            join c in customerBrands
+                                on s.str_brandCode.ToUpper() equals c.str_brandCode.ToUpper() into temp
+                            from left in temp.DefaultIfEmpty()
+                            select new BrandListDto
+                            {
+                                str_brandCode = left?.str_brandCode ?? "",
+                                str_brandName = left?.str_brandName ?? ""
+                            };
+
+                result = joined
+                    .Where(x => !string.IsNullOrWhiteSpace(x.str_brandCode) &&
+                                !string.IsNullOrWhiteSpace(x.str_brandName))
+                    .OrderBy(x => x.str_brandName)
+                    .ToList();
+            }
+            catch
+            {
+                
+            }
+
+            return result;
+        }
+        public List<DropdownItemDto> ToDropdownFromBrands(IEnumerable<BrandListDto> list)
+        {
+            return list
+                .Where(x => !string.IsNullOrWhiteSpace(x.str_brandCode))
+                .Select(x => new DropdownItemDto
+                {
+                    Value = x.str_brandCode,
+                    Label = string.IsNullOrWhiteSpace(x.str_brandName)
+                                ? x.str_brandCode
+                                : $"{x.str_brandName}"
+                })
+                .OrderBy(x => x.Label)
+                .ToList();
+        }
     }
+
 }

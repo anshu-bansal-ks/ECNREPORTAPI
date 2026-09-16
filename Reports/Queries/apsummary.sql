@@ -1,4 +1,4 @@
--- Isme sirf pure SQL query rahegi
+
 SELECT vendor.vendor_id 
        ,vendor.vendor_name 
        ,sum(p21_view_apinv_hdr.open_amount) Balance
