@@ -231,6 +231,7 @@ namespace ECNREPORTAPI.Controllers
 
             return Ok(dropdown);
         }
+        
     
         [HttpGet("shows")]
         [AllowAnonymous]  
@@ -471,8 +472,6 @@ namespace ECNREPORTAPI.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> RolesReports()
         {
-            // if (string.IsNullOrWhiteSpace))
-            //     return BadRequest("compId required");
 
             var data = await _svc.GetRolesReportsAsync();
 

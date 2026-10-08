@@ -21,10 +21,8 @@ namespace ECNREPOTINGPORTAL.Models
 
             using var con = new SqlConnection(conStr);
 
-            // SQL ko thoda "Smart" banaya hai
             string sql = $@"
                         WITH sub_tree AS (
-                            -- 1. Pehle saari reports nikalo jo is user ke access mein hain (Bina filter ke)
                             SELECT rs.ReportId, rs.report_name, rs.ReportSubtitles, rs.rank, rs.url,
                                 rs.AddedDate, DATEDIFF(day, rs.AddedDate, GETDATE()) AS rptDay,
                                 rs.parent_report_id, rs.showPortalYN, rs.keyword, rs.description

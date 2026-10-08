@@ -36,10 +36,14 @@ builder.Services.AddScoped<DropdownService>();
 builder.Services.AddScoped<ReportIndexService>();
 builder.Services.AddScoped<ReportEngine>();
 builder.Services.AddScoped<ItemDetailsService>();
+builder.Services.AddScoped<ItemDetailsWithInventoryQuantitiesService>();
+builder.Services.AddScoped<ListOfSkusUpcsPricesCostsService>();
+builder.Services.AddScoped<AccountSuppressedFromAgingService>();
 builder.Services.AddScoped<ScheduleService>();
 builder.Services.AddScoped<ExcelExportService>();
 builder.Services.AddScoped<PdfExportService>();
 builder.Services.AddScoped<JwtService>();
+
 
 // =========================
 // JWT Authentication

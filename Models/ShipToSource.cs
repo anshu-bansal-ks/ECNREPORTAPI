@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-[Table("ship_to_source")]  // agar table ka naam yahi hai toh rakh lo, nahi toh hata do
+[Table("ship_to_source")]  
 public class ShipToSource
 {
     [Key]

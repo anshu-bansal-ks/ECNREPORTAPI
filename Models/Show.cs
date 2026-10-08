@@ -1,10 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-[Table("show")]  // optional, agar table name yahi hai
+[Table("show")]  
 public class Show
 {
-    [Key]                    // YE LINE BAS ADD KAR DO
+    [Key]                    
     public int ShowId { get; set; }
 
     public string CompId { get; set; } = null!;

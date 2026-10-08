@@ -481,21 +481,7 @@ namespace ECNREPORTAPI.Services
                         Totals = reportTotals
                     };
                 }
-                else if (rName == "forecastreportforxgen")
-                {
-                    string locationId = filters.GetValueOrDefault("location", "ALL");
-                    string supplierId = filters.GetValueOrDefault("supplier", "ALL");
-                    string prefix = filters.GetValueOrDefault("prefix", "");
-
-                    var service = new ForecastReportForXGenService(_config);
-                    var data = await service.GetDataAsync(compId, locationId, supplierId, prefix);
-
-                    return new { 
-                        Data = data, 
-                        ExcelData = data, 
-                        Totals = new Dictionary<string, decimal>() 
-                    };
-                }
+                
                 else if (rName == "salesbybrandforvendor")
                 {
                     string supplierId = filters.GetValueOrDefault("supplierId", "");
@@ -523,6 +509,365 @@ namespace ECNREPORTAPI.Services
                         Totals = new Dictionary<string, decimal>() 
                     };
                 }
+                else if (rName == "salesbycustomerbrandwithout")
+                {
+                    string supplierId = filters.GetValueOrDefault("supplierId", "");
+                    string brandName = filters.GetValueOrDefault("brand_name", "");
+                    string fromDate = filters.GetValueOrDefault("fromdate", "");
+                    string tillDate = filters.GetValueOrDefault("tilldate", "");
+                    string tPeriod = filters.GetValueOrDefault("timeperiod", "");
+
+                    var service = new SalesByCustomerBrandWithoutService(_config);
+                    var data = await service.GetDataAsync(compId, supplierId, brandName, fromDate, tillDate, tPeriod);
+
+                    var excelData = data.Select(item => (IDictionary<string, object>)new Dictionary<string, object>
+                    {
+                        { "supplier_id", item.supplier_id },
+                        { "supplier_name", item.supplier_name },
+                        { "str_brandName", item.str_brandName },
+                        { "customer_id", item.customer_id },
+                        { "customer_name", item.customer_name },
+                        { "salesrep", item.Salesrep },
+                        { "units", item.UNITS },
+                        { "sales", item.SALES }
+                    }).Cast<object>().ToList();
+
+                    return new { 
+                        Data = data, 
+                        ExcelData = excelData, 
+                        Totals = new Dictionary<string, decimal>() 
+                    };
+                }
+                else if (rName == "salesbycustomerbybrand")
+                {
+                    string supplierId = filters.GetValueOrDefault("supplierId", "");
+                    string brandName = filters.GetValueOrDefault("brand_name", "");
+                    string fromDate = filters.GetValueOrDefault("fromdate", "");
+                    string tillDate = filters.GetValueOrDefault("tilldate", "");
+                    string tPeriod = filters.GetValueOrDefault("timeperiod", "");
+
+                    var service = new SalesByCustomerByBrandService(_config);
+                    var data = await service.GetDataAsync(compId, supplierId, brandName, fromDate, tillDate, tPeriod);
+
+                    var excelData = data.Select(item => (IDictionary<string, object>)new Dictionary<string, object>
+                    {
+                        { "supplier_id", item.supplier_id },
+                        { "supplier_name", item.supplier_name },
+                        { "str_brandName", item.str_brandName },
+                        { "customer_id", item.customer_id },
+                        { "customer_name", item.customer_name },
+                        { "salesrep", item.Salesrep },
+                        { "units", item.UNITS },
+                        { "sales", item.SALES },
+                        { "cost", item.COST },
+                        { "gross_profit", item.gross_profit },
+                        { "profit_percent", item.profit_percent }
+                    }).Cast<object>().ToList();
+
+                    return new { 
+                        Data = data, 
+                        ExcelData = excelData, 
+                        Totals = new Dictionary<string, decimal>() 
+                    };
+                }
+                else if (rName == "creditholdsall")
+                {
+                    var service = new CreditHoldsAllService(_config);
+                    var grouped = await service.GetDataAsync();
+
+                    var excelRows = new List<IDictionary<string, object>>();
+
+                    foreach (var group in grouped)
+                    {
+                        string compTitle = group.Key.ToUpper() switch
+                        {
+                            "ECN" => "ECN Accounts",
+                            "ADV" or "ADVENTURE" => "Adventure Accounts",
+                            "XG" or "XGEN" => "XGEN Accounts",
+                            "IVD" => "IVD Accounts",
+                            _ => $"{group.Key} Accounts"
+                        };
+
+                        excelRows.Add(new Dictionary<string, object>
+                        {
+                            { "Customer Id","" },
+                            { "Name/Rep", compTitle },
+                            { "Order No", "" },
+                            { "Order Date", "" },
+                            { "Order Total", "" },
+                            { "Terms/Status", "" },
+                            { "Carrier", "" },
+                            { "Min in Q", "" },
+                            { "Credit Limit", "" },
+                            { "__isGroupHeader", true }
+                        });
+
+                        foreach (var item in group.Value)
+                        {
+                            string termsStatus = string.IsNullOrWhiteSpace(item.credit_status)
+                                ? item.orderHeaderTerms
+                                : $"{item.orderHeaderTerms} / {item.credit_status}";
+
+                            excelRows.Add(new Dictionary<string, object>
+                            {
+                                { "Customer Id", item.customer_id },
+                                { "Name/Rep", $"{item.customer_name} / {item.salesrep}" },
+                                { "Order No", item.order_no },
+                                { "Order Date", item.order_date },
+                                { "Order Total", item.order_total },
+                                { "Terms/Status", termsStatus },
+                                { "Carrier", item.carrier ?? "—" },
+                                { "Min in Q", item.Time_In_Q },
+                                { "Credit Limit", item.credit_limit }
+                                
+                            });
+                        }
+                    }
+
+                    return new {
+                        GroupedData = grouped,
+                        ExcelData = excelRows,
+                        Totals = new Dictionary<string, decimal>()
+                    };
+                }
+               else if (rName == "customerbreakdownmonthovermonthgroupcode")
+                {
+                    string groupCode = filters.GetValueOrDefault("group_code", "");
+                    
+                    var service = new CustomerBreakdownGroupCodeService(_config);
+                    var groupedData = await service.GetDataAsync(compId, groupCode);
+
+                    var excelRows = new List<IDictionary<string, object>>();
+
+                    foreach (var group in groupedData)
+                    {
+                        if (group == null || !group.Any()) continue;
+
+                        var firstItem = group[0];
+                        string custId = firstItem.ContainsKey("customer_id") ? firstItem["customer_id"]?.ToString() ?? "" : "";
+                        string billName = firstItem.ContainsKey("bill2_name") ? firstItem["bill2_name"]?.ToString() ?? "" : "";
+                        
+                        string headerTitle = custId.Equals("Total", StringComparison.OrdinalIgnoreCase) 
+                            ? "TOTAL" 
+                            : $"{compId}:{custId} {billName}";
+
+                        // 1. Add Group Header Row for Excel
+                        excelRows.Add(new Dictionary<string, object>
+                        {
+                            { "Year", headerTitle },
+                            { "Jan", "" }, { "Feb", "" }, { "Mar", "" }, { "Apr", "" },
+                            { "May", "" }, { "Jun", "" }, { "Jul", "" }, { "Aug", "" },
+                            { "Sep", "" }, { "Oct", "" }, { "Nov", "" }, { "Dec", "" },
+                            { "Total", "" }
+                        });
+
+                        // 2. Add Data Rows
+                        foreach (var item in group)
+                        {
+                            excelRows.Add(new Dictionary<string, object>
+                            {
+                                { "Year", item.ContainsKey("year") ? item["year"] : "" },
+                                { "Jan", item.ContainsKey("Jan") ? item["Jan"] : 0 },
+                                { "Feb", item.ContainsKey("Feb") ? item["Feb"] : 0 },
+                                { "Mar", item.ContainsKey("Mar") ? item["Mar"] : 0 },
+                                { "Apr", item.ContainsKey("Apr") ? item["Apr"] : 0 },
+                                { "May", item.ContainsKey("May") ? item["May"] : 0 },
+                                { "Jun", item.ContainsKey("Jun") ? item["Jun"] : 0 },
+                                { "Jul", item.ContainsKey("Jul") ? item["Jul"] : 0 },
+                                { "Aug", item.ContainsKey("Aug") ? item["Aug"] : 0 },
+                                { "Sep", item.ContainsKey("Sep") ? item["Sep"] : 0 },
+                                { "Oct", item.ContainsKey("Oct") ? item["Oct"] : 0 },
+                                { "Nov", item.ContainsKey("Nov") ? item["Nov"] : 0 },
+                                { "Dec", item.ContainsKey("Dec") ? item["Dec"] : 0 },
+                                { "Total", item.ContainsKey("TOTAL") ? item["TOTAL"] : 0 }
+                            });
+                        }
+                    }
+
+                    return new {
+                        Data = groupedData,
+                        ExcelData = excelRows,
+                        Totals = new Dictionary<string, decimal>()
+                    };
+                }
+                else if (rName == "groupcodes" || rName == "groupcode")
+                {
+                    string groupCode = filters.GetValueOrDefault("group_code", "");
+                    var service = new GroupCodesService(_config);
+                    var groupedData = await service.GetDataAsync(groupCode);
+
+                    // Excel export ke liye flat list map karna
+                    var excelRows = new List<IDictionary<string, object>>();
+
+                    foreach (var group in groupedData)
+                    {
+                        string compTitle = group.Key.ToUpper() switch
+                        {
+                            "ECN" => "ECN Accounts",
+                            "ADV" or "ADVENTURE" => "Adventure Accounts",
+                            "XG" or "XGEN" => "XGEN Accounts",
+                            "IVD" => "IVD Accounts",
+                            _ => $"{group.Key} Accounts"
+                        };
+
+                        // Group Header row for Excel
+                        excelRows.Add(new Dictionary<string, object>
+                        {
+                            { "Customer Id", "" },
+                            { "Customer Name", compTitle },
+                            { "Current", "" },
+                            { "30 - 60", "" },
+                            { "60 - 90", "" },
+                            { "Over 90", "" },
+                            { "Total", "" },
+                            { "__isGroupHeader", true }
+                        });
+
+                        foreach (var item in group.Value)
+                        {
+                            excelRows.Add(new Dictionary<string, object>
+                            {
+                                { "Customer Id", item.ContainsKey("customer_id") ? item["customer_id"] : "" },
+                                { "Customer Name", item.ContainsKey("customer_name") ? item["customer_name"] : "" },
+                                { "Current", item.ContainsKey("B1") ? item["B1"] : 0 },
+                                { "30 - 60", item.ContainsKey("B2") ? item["B2"] : 0 },
+                                { "60 - 90", item.ContainsKey("B3") ? item["B3"] : 0 },
+                                { "Over 90", item.ContainsKey("B4") ? item["B4"] : 0 },
+                                { "Total", item.ContainsKey("tot") ? item["tot"] : 0 }
+                            });
+                        }
+                    }
+
+                    return new {
+                        GroupedData = groupedData,
+                        ExcelData = excelRows,
+                        Totals = new Dictionary<string, decimal>()
+                    };
+                }
+                else if (rName.Equals("invoicedetail", StringComparison.OrdinalIgnoreCase))
+                {
+                    string invoiceNum = filters.GetValueOrDefault("invoice_no", filters.GetValueOrDefault("invoiceId", ""));
+                    var service = new InvoiceDetailService(_config);
+                    var data = await service.GetDataAsync(compId, invoiceNum);
+
+                    return new {
+                        Data = data,
+                        ExcelData = data,
+                        Totals = new Dictionary<string, decimal>()
+                    };
+                }
+                else if (rName.Equals("invoiceexport2", StringComparison.OrdinalIgnoreCase) || rName.Equals("invoicedetail", StringComparison.OrdinalIgnoreCase))
+                {
+                    string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Reports", "Queries", "invoiceexport2.sql");
+                    if (!File.Exists(filePath)) return null;
+
+                    string sql = await File.ReadAllTextAsync(filePath);
+                    
+                    int invoiceNum = int.TryParse(filters.GetValueOrDefault("invoice_no", filters.GetValueOrDefault("invoicenum", "0")), out int num) ? num : 0;
+
+                    var p = new DynamicParameters();
+                    p.Add("@invoicenum", invoiceNum);
+
+                    var rawData = (await con.QueryAsync<dynamic>(sql, p, commandTimeout: 300)).ToList();
+                    var data = rawData.Select(x => (IDictionary<string, object>)x)
+                                    .Select(d => d.ToDictionary(k => k.Key, v => v.Value))
+                                    .ToList();
+
+                    return new { 
+                        Data = data, 
+                        ExcelData = data,
+                        Totals = new Dictionary<string, decimal>() 
+                    };
+                }
+                else if (rName.Equals("invoiceexport3", StringComparison.OrdinalIgnoreCase))
+                {
+                    string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Reports", "Queries", "invoiceexport3.sql");
+                    if (!File.Exists(filePath)) return null;
+
+                    string sql = await File.ReadAllTextAsync(filePath);
+                    int invoiceNum = int.TryParse(filters.GetValueOrDefault("invoice_no", filters.GetValueOrDefault("invoicenum", "0")), out int num) ? num : 0;
+
+                    var p = new DynamicParameters();
+                    p.Add("@invoicenum", invoiceNum);
+
+                    var rawData = (await con.QueryAsync<dynamic>(sql, p, commandTimeout: 300)).ToList();
+                    var data = rawData.Select(x => (IDictionary<string, object>)x)
+                                    .Select(d => d.ToDictionary(k => k.Key, v => v.Value))
+                                    .ToList();
+
+                    return new { 
+                        Data = data, 
+                        ExcelData = data,
+                        Totals = new Dictionary<string, decimal>() 
+                    };
+                }
+            else if (rName == "saleshistoryitemtotalsforitems")
+            {
+                string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Reports", "Queries", "saleshistoryitemtotalsforitems.sql");
+                if (!File.Exists(filePath)) return null;
+
+                string sql = await File.ReadAllTextAsync(filePath);
+                sql = sql.Replace("{dashboard}", _dashboard);
+                
+                string dateRange = GetDateRangeSnippet(filters);
+                if (sql.Contains("{dateRange}"))
+                    sql = sql.Replace("{dateRange}", dateRange);
+
+                var p = PrepareParameters(filters, compId);
+                p.Add("ItemIdList", filters.GetValueOrDefault("itemIdList", filters.GetValueOrDefault("ItemIdList", "")));
+
+                var rawData = (await con.QueryAsync<dynamic>(sql, p, commandTimeout: 300)).ToList();
+                
+                var reportTotals = new Dictionary<string, decimal>();
+                decimal totalUnits = rawData.Sum(row => ((IDictionary<string, object>)row).ContainsKey("UNITS") && decimal.TryParse(((IDictionary<string, object>)row)["UNITS"]?.ToString(), out decimal d) ? d : 0);
+                decimal totalSales = rawData.Sum(row => ((IDictionary<string, object>)row).ContainsKey("SALES") && decimal.TryParse(((IDictionary<string, object>)row)["SALES"]?.ToString(), out decimal d) ? d : 0);
+
+                reportTotals["UNITS"] = totalUnits;
+                reportTotals["SALES"] = totalSales;
+
+                return new { Data = rawData, ExcelData = rawData, Totals = reportTotals };
+            }
+            else if (rName == "backorders")
+            {
+                string repId = filters.GetValueOrDefault("repId", "ALL");
+                string checkedStatus = filters.GetValueOrDefault("checkedStatus", "false");
+
+                var model = new Backorders(_config);
+                return await model.GetDataAsync(compId, repId, checkedStatus);
+            }
+            else if (rName == "binresizingreport")
+            {
+                var service = new BinResizingReportService(_config);
+                return await service.GetDataAsync(compId, filters);
+            }
+            else if (rName == "adsorderlookup")
+            {
+                var model = new AdsOrderLookupService(_config);
+                return await model.GetDataAsync(compId, filters);
+            }
+            else if (rName == "forecastreportforxgen")
+            {
+                var model = new ForecastReportForXGenService(_config);
+                return await model.GetDataAsync(compId, filters);
+            }
+            else if (rName == "arcallnotes")
+            {
+                var model = new ArcallnotesService(_config);
+                return await model.GetDataAsync(compId, filters);
+            }
+            else if (rName == "creditholdswithrelease")
+            {
+                var service = new CreditHoldsWithReleaseService(_config);
+                var grouped = await service.GetDataAsync();
+
+                return new
+                {
+                    GroupedData = grouped,
+                    Data        = grouped,
+                    Totals      = new Dictionary<string, decimal>()
+                };
+            }
+            
                 else if (rName == "topcustomersytdvlytdwithmargin")
                 {
                     string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Reports", "Queries", "topcustomersytdvlytdwithmargin.sql");

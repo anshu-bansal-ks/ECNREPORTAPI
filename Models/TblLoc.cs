@@ -1,10 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-[Table("tbl_loc")]  // optional
+[Table("tbl_loc")]  
 public class TblLoc
 {
-    [Key]                    // BAS YE LINE ADD KAR DO
+    [Key]                 
     public int Id { get; set; }
 
     public string Company { get; set; } = null!;

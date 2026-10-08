@@ -1,4 +1,3 @@
-// File: Models/DropdownItemDto.cs
 namespace ECNREPORTAPI.Models
 {
     public class DropdownItemDto

@@ -1418,6 +1418,19 @@
           }
         }
       },
+      "RestSharp/114.0.0": {
+        "type": "package",
+        "compile": {
+          "lib/net9.0/RestSharp.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net9.0/RestSharp.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "runtime.debian.8-x64.runtime.native.System.Security.Cryptography.OpenSsl/4.3.2": {
         "type": "package",
         "runtimeTargets": {
@@ -5858,6 +5871,31 @@
         "runtimes/win-x86/native/zlib1.dll"
       ]
     },
+    "RestSharp/114.0.0": {
+      "sha512": "8pDO4q+K8nIqXbvGCb9ciKcngj36pCXGRDzOYPEPoS2IvBIL+mejmUMAtSNALt/NkDc9LQmHvM95kdniLSbGtg==",
+      "type": "package",
+      "path": "restsharp/114.0.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "README.md",
+        "lib/net10.0/RestSharp.dll",
+        "lib/net10.0/RestSharp.xml",
+        "lib/net471/RestSharp.dll",
+        "lib/net471/RestSharp.xml",
+        "lib/net48/RestSharp.dll",
+        "lib/net48/RestSharp.xml",
+        "lib/net8.0/RestSharp.dll",
+        "lib/net8.0/RestSharp.xml",
+        "lib/net9.0/RestSharp.dll",
+        "lib/net9.0/RestSharp.xml",
+        "lib/netstandard2.0/RestSharp.dll",
+        "lib/netstandard2.0/RestSharp.xml",
+        "restsharp.114.0.0.nupkg.sha512",
+        "restsharp.nuspec",
+        "restsharp.png"
+      ]
+    },
     "runtime.debian.8-x64.runtime.native.System.Security.Cryptography.OpenSsl/4.3.2": {
       "sha512": "7VSGO0URRKoMEAq0Sc9cRz8mb6zbyx/BZDEWhgPdzzpmFhkam3fJ1DAGWFXBI4nGlma+uPKpfuMQP5LXRnOH5g==",
       "type": "package",
@@ -10161,6 +10199,7 @@
       "Microsoft.EntityFrameworkCore.SqlServer >= 9.0.0",
       "Microsoft.EntityFrameworkCore.Tools >= 9.0.0",
       "QuestPDF >= 2026.5.0",
+      "RestSharp >= 114.0.0",
       "Swashbuckle.AspNetCore >= 6.5.0",
       "System.DirectoryServices.AccountManagement >= 10.0.0"
     ]
@@ -10247,6 +10286,10 @@
           "QuestPDF": {
             "target": "Package",
             "version": "[2026.5.0, )"
+          },
+          "RestSharp": {
+            "target": "Package",
+            "version": "[114.0.0, )"
           },
           "Swashbuckle.AspNetCore": {
             "target": "Package",

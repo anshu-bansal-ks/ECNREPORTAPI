@@ -26,21 +26,18 @@ public class AuthController : ControllerBase
         if (string.IsNullOrWhiteSpace(req.Username) || string.IsNullOrWhiteSpace(req.Password))
             return BadRequest("Username and Password are required");
 
-        // Step 1: Check user exists in DB and is active
         var user = await _context.UserUnifiedPortals
             .FirstOrDefaultAsync(u => u.Username.Trim().ToLower() == req.Username.Trim().ToLower() && u.IsActive);
 
         if (user == null)
             return Unauthorized("User not found or inactive in system");
 
-        // Step 2: Authenticate with Active Directory
         string domain = _configuration["ActiveDirectory:Domain"]!;
         string ldapPath = _configuration["ActiveDirectory:Path"]!;
 
         if (!AuthenticateWithActiveDirectory(domain, req.Username.Trim(), req.Password, ldapPath))
             return Unauthorized("Invalid credentials - Active Directory authentication failed");
 
-        // Step 3: Generate JWT Token (AB ISSUER + AUDIENCE BHI ADD KIYA!)
         var key = Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!);
         var tokenHandler = new JwtSecurityTokenHandler();
 
@@ -57,7 +54,6 @@ public class AuthController : ControllerBase
             Subject = new ClaimsIdentity(claims),
             Expires = DateTime.UtcNow.AddHours(8),
 
-            // YE 2 LINE ADD KI HAIN → AB AUDIENCE ERROR KABHI NAHI AAYEGA!
             Issuer = _configuration["Jwt:Issuer"],
             Audience = _configuration["Jwt:Audience"],
 
@@ -80,14 +76,13 @@ public class AuthController : ControllerBase
         });
     }
 
-    // Windows-only warning suppress kar diya
 #pragma warning disable CA1416
     private bool AuthenticateWithActiveDirectory(string domain, string username, string password, string ldapPath)
     {
         try
         {
             var entry = new DirectoryEntry(ldapPath, $@"{domain}\{username}", password);
-            var native = entry.NativeObject; // Forces authentication
+            var native = entry.NativeObject; 
             return true;
         }
         catch

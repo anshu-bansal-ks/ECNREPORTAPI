@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using ECNREPORTAPI.Services;
 using ECNREPOTINGPORTAL.Models;
-using Microsoft.AspNetCore.Authorization;   // ← YE ADD KARNA ZAROORI THA!
+using Microsoft.AspNetCore.Authorization;   
 
 [ApiController]
 [Route("[controller]")]
@@ -28,8 +28,7 @@ public class ReportIndexController : ControllerBase
             return BadRequest(new { message = "Invalid UserId" });
 
         var data = await _service.GetUserReportsAsync(parsedUserId, keyword);
-
-        // Fixed: ?? operator with proper type
+        
         return Ok(data ?? new List<ReportIndex>());
     }
 }

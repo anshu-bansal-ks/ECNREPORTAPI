@@ -18,11 +18,8 @@ namespace ECNREPORTAPI.Models
         [Column("IsActive")]
         public bool IsActive { get; set; } = true;
 
-        // 🔥 YE WALI LINE ADD KARTE HI ERROR CHALA JAYEGA
         [Column("IsAdmin")]
         public bool IsAdmin { get; set; } 
-
-        // Update functionality ke liye ye bhi add kar lo
         public DateTime? LastLoginDate { get; set; }
     }
 }

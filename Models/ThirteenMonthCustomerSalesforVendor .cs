@@ -50,7 +50,6 @@ namespace ECNREPORTAPI.Models
             await using var con = new SqlConnection(conStr);
             await con.OpenAsync();
 
-            // 1. Get Dynamic Months
             string monthSql = GetMonthsQuery();
             using var cmdMonth = new SqlCommand(monthSql, con);
             using var readerMonth = await cmdMonth.ExecuteReaderAsync();
@@ -68,7 +67,6 @@ namespace ECNREPORTAPI.Models
             subquery1 = subquery1.TrimEnd(',');
             subquery2 = subquery2.TrimEnd(',');
 
-            // 2. Final SQL with Pivot
             string repFilter = repId != "ALL" ? " AND DA_Rep.salesrep_id=@rep_id " : "";
             string sql = $@"
                 SELECT supplier_id, supplier_name, customer_id, customer_name, rep, {subquery1}

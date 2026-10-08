@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-[Table("price_page")]  // agar table ka naam alag hai toh, warna hata dena
+[Table("price_page")]  
 public class PricePage
 {
     [Key]

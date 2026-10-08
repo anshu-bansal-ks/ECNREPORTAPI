@@ -18,16 +18,17 @@ namespace ECNREPORTAPI.Models
         public string ConStr_Dashboard => 
             _config.GetConnectionString("strCon_dashboard") 
             ?? throw new InvalidOperationException("Missing connection string: strCon_dashboard");
-    public string StrConkoretsky => 
-                _config.GetConnectionString("strConkoretsky") 
-                ?? throw new InvalidOperationException("Missing connection string: strCon_dashboard");
-public string ConEcnStr => 
-    _config.GetConnectionString("strecnconnectionString") 
-    ?? _config["strecnconnectionString"] 
-    ?? throw new InvalidOperationException("Missing connection string: strecnconnectionString");
-        /// <summary>
-        /// Returns company-specific connection string by replacing database prefix
-        /// </summary>
+        public string StrConkoretsky => 
+                    _config.GetConnectionString("strConkoretsky") 
+                        ?? throw new InvalidOperationException("Missing connection string: strCon_dashboard");
+        public string ConEcnStr => 
+            _config.GetConnectionString("strecnconnectionString") 
+            ?? _config["strecnconnectionString"] 
+            ?? throw new InvalidOperationException("Missing connection string: strecnconnectionString");
+        public string strecnsalsify => 
+            _config.GetConnectionString("strecnsalsify") 
+            ?? _config["strecnsalsify"] 
+            ?? throw new InvalidOperationException("Missing connection string: strecnsalsify");
         public string GetDataBaseConnectionStringHardCoded(string? compId)
         {
             if (string.IsNullOrWhiteSpace(compId))
@@ -50,11 +51,6 @@ public string ConEcnStr =>
             };
         }
 
-
- // =========================================================
-        // ================= PERIOD SECTION (LEGACY SAFE) ==========
-        // =========================================================
-
         public class PeriodList
         {
             public string Period { get; set; } = "";
@@ -62,9 +58,6 @@ public string ConEcnStr =>
             public string PeriodEndDate { get; set; } = "";
         }
 
-        /// <summary>
-        /// Last 12 months list (MMM-yyyy)
-        /// </summary>
         public List<PeriodList> gePeriodList()
         {
             List<PeriodList> list = new();
@@ -101,7 +94,6 @@ public string ConEcnStr =>
 
             if (!string.IsNullOrWhiteSpace(t_period) && !t_period.Equals("Time Period"))
             {
-                // Purana format: "day-0-Today" ya direct "Today"
                 string period = t_period;
                 if (t_period.Contains("-"))
                 {
@@ -113,7 +105,6 @@ public string ConEcnStr =>
                 var firstDayOfMonth = new DateTime(curdate.Year, curdate.Month, 1);
                 var firstDayOfYear = new DateTime(curdate.Year, 1, 1);
 
-                // Normalize string for safe matching
                 string key = period.ToUpper().Replace(" ", "").Replace("(", "").Replace(")", "");
 
                 if (key == "TODAY")
@@ -128,7 +119,6 @@ public string ConEcnStr =>
                 }
                 else if (key == "THISWEEK")
                 {
-                    // Aapka purana Sunday-based logic
                     DayOfWeek currentDay = curdate.DayOfWeek;
                     int daysTillCurrentDay = currentDay - DayOfWeek.Sunday;
                     DateTime currentWeekStartDate = curdate.AddDays(-daysTillCurrentDay);
@@ -145,7 +135,6 @@ public string ConEcnStr =>
                 }
                 else if (key == "LASTWEEKSUNTOSAT" || key == "LASTWEEK")
                 {
-                    // 🔥 Correct Last Week (Sun-Sat) logic
                     int dOW = (int)curdate.DayOfWeek; 
                     int daysToSat = dOW + 1; 
                     DateTime lastSat = curdate.AddDays(-daysToSat);
@@ -209,7 +198,6 @@ public string ConEcnStr =>
                 }
                 else
                 {
-                    // Default Fallback
                     from_date = "1900-01-01";
                     till_date = "2099-12-31";
                 }
@@ -244,10 +232,10 @@ public string ConEcnStr =>
             try
             {
                 using var entry = new DirectoryEntry(path, fullUser, password, AuthenticationTypes.Secure);
-                _ = entry.NativeObject; // Forces authentication
+                _ = entry.NativeObject; 
                 return true;
             }
-            catch (COMException) // Most common: bad credentials
+            catch (COMException) 
             {
                 errMsg = "Invalid username or password.";
                 return false;
@@ -311,13 +299,11 @@ public string ConEcnStr =>
             }
             catch (Exception ex)
             {
-                // In real app: use ILogger
                 System.Diagnostics.Debug.WriteLine($"[LogLogin] Failed: {ex.Message}");
             }
         }
     }
 
-    // Modern, clean DTO — perfect for this use case
     public record users_unifiedportal(
         int UserId,
         string Username,

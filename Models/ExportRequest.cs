@@ -11,7 +11,6 @@ namespace ECNREPORTAPI.Models
         public string[]? TotalColumns { get; set; }
         public string? LabelColumn { get; set; }
         public string? FilterSummary { get; set; }
-        // Filter values (repId, supplierId etc) pass karne ke liye
         public Dictionary<string, string> Filters { get; set; } = new();
     }
 }

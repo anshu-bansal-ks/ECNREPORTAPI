@@ -51,7 +51,6 @@ namespace ECNREPORTAPI.Models
             year[4] = year[0] - 4;
             year[5] = year[0] - 5;
 
-            // Proper filtering check for sales rep inside the subquery
             bool hasRepFilter = !string.IsNullOrEmpty(rep_id) && !rep_id.Equals("ALL", StringComparison.OrdinalIgnoreCase);
             string subQueryrep = hasRepFilter ? "WHERE rep.salesrep_id = @rep_id" : "";
 

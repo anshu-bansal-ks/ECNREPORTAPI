@@ -17,7 +17,6 @@ namespace ECNREPORTAPI.Services
             var model = new ReportIndex();
             var result = model.GetReports(userId, keyword, _config);
 
-            // Ab async hai aur await bhi use kar sakte hain (future-proof)
             return await Task.FromResult(result);
         }
     }
